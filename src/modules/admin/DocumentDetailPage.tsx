@@ -6,11 +6,12 @@ import {
   uploadAttachment,
   deleteAttachment,
   createSignedUrl,
+  voidDocument,
 } from '@/modules/admin/api'
 import type { DocumentWithSupplier, AttachmentRow, BaseUnit } from '@/lib/database.types'
 import { supabase } from '@/lib/supabase'
 import { useI18n } from '@/i18n'
-import { formatDateTime, formatQty } from '@/lib/format'
+import { formatDate, formatDateTime, formatQty } from '@/lib/format'
 import { toast, errorMessage } from '@/lib/toast'
 import { useLiveRefresh } from '@/lib/realtime'
 import { ArrowLeft, Printer, Upload, Trash2, FileText, Loader as Loader2 } from 'lucide-react'
@@ -44,6 +45,9 @@ export function DocumentDetailPage() {
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<AttachmentRow | null>(null)
+  const [voidOpen, setVoidOpen] = useState(false)
+  const [voidReason, setVoidReason] = useState('')
+  const [voiding, setVoiding] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const loadedIdRef = useRef<string | null>(null)
 
@@ -91,6 +95,22 @@ export function DocumentDetailPage() {
     posted: t.admin.documents.statusPosted,
     draft: t.admin.documents.statusDraft,
     void: t.admin.documents.statusVoid,
+  }
+
+  const handleVoid = async () => {
+    if (!id || voiding) return
+    setVoiding(true)
+    try {
+      await voidDocument(id, voidReason.trim() || null)
+      toast(t.admin.documents.voided, 'success')
+      setVoidOpen(false)
+      setVoidReason('')
+      loadAll(true)
+    } catch (e) {
+      toast(errorMessage(e), 'error')
+    } finally {
+      setVoiding(false)
+    }
   }
 
   const handleFile = async (file: File) => {
@@ -153,6 +173,14 @@ export function DocumentDetailPage() {
           <ArrowLeft className="w-5 h-5 text-muted" />
         </button>
         <h1 className="text-xl font-semibold text-ink flex-1">{doc.number}</h1>
+        {doc.status === 'posted' && ['receipt', 'issue', 'writeoff'].includes(doc.doc_type) && (
+          <button
+            onClick={() => setVoidOpen(true)}
+            className="flex items-center gap-1.5 bg-bad-soft text-bad rounded-lg px-3 py-2 text-sm font-medium"
+          >
+            {t.admin.documents.voidAction}
+          </button>
+        )}
         <button
           onClick={() => window.print()}
           className="flex items-center gap-1.5 bg-surface border border-line rounded-lg px-3 py-2 text-sm text-ink hover:bg-app transition-colors"
@@ -161,6 +189,33 @@ export function DocumentDetailPage() {
           {t.admin.documents.print}
         </button>
       </div>
+
+      {voidOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-6 no-print">
+          <div className="bg-surface rounded-2xl w-full max-w-sm p-5 border border-line">
+            <h3 className="text-base font-semibold text-ink mb-2">{t.admin.documents.voidTitle}</h3>
+            <p className="text-sm text-muted mb-3">{t.admin.documents.voidBody}</p>
+            <input
+              value={voidReason}
+              onChange={(e) => setVoidReason(e.target.value)}
+              maxLength={200}
+              placeholder={t.admin.documents.voidReason}
+              className="w-full bg-app rounded-xl px-4 py-2.5 text-sm focus:outline-none mb-4"
+            />
+            <div className="flex gap-3">
+              <button onClick={() => setVoidOpen(false)} disabled={voiding} className="flex-1 bg-app text-ink rounded-xl py-3 font-medium">{t.cleaning.cancel}</button>
+              <button
+                onClick={handleVoid}
+                disabled={voiding}
+                className="flex-1 bg-bad text-white rounded-xl py-3 font-medium disabled:opacity-40 flex items-center justify-center gap-2"
+              >
+                {voiding ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                {t.admin.documents.voidConfirm}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Doc header */}
       <div className="bg-surface border border-line rounded-xl p-4 mb-4 print-area">
@@ -171,7 +226,7 @@ export function DocumentDetailPage() {
           </div>
           <div>
             <span className="text-muted">{t.admin.documents.date}: </span>
-            <span className="text-ink font-medium">{formatDateTime(doc.doc_date)}</span>
+            <span className="text-ink font-medium">{formatDate(doc.doc_date)}</span>
           </div>
           <div>
             <span className="text-muted">{t.admin.documents.status}: </span>

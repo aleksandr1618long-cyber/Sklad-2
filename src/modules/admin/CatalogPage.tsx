@@ -263,6 +263,11 @@ export function CatalogPage() {
           onClose={() => { setEditingItem(null); setAddingItem(null) }}
           onSave={async (params) => {
             try {
+              const nameKey = params.name.trim().toLowerCase()
+              if (items.some((i) => i.id !== editingItem?.item?.id && i.name.trim().toLowerCase() === nameKey)) {
+                toast(t.admin.catalog.duplicateName, 'error')
+                return
+              }
               if (editingItem?.item) {
                 if (editingItem.item.active && params.active === false) {
                   const stock = await fetchItemStockSummary(editingItem.item.id)

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { Fragment, useState, useEffect, useMemo, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { fetchWarehouseStock, fetchStockMoves } from '@/modules/admin/api'
 import type { WarehouseStockRow, StockMoveRow } from '@/lib/database.types'
@@ -157,9 +157,8 @@ export function WarehousePage() {
                     const expanded = expandedId === item.item_id
                     const minPct = item.min_stock ? Math.min((item.qty / item.min_stock) * 100, 100) : 100
                     return (
-                      <>
+                      <Fragment key={item.item_id}>
                         <tr
-                          key={item.item_id}
                           onClick={() => toggleExpand(item.item_id)}
                           className="cursor-pointer transition-colors hover:bg-app"
                         >
@@ -168,7 +167,7 @@ export function WarehousePage() {
                           </td>
                           <td className="px-2.5 py-2.5 border-b border-line whitespace-nowrap" style={{ minWidth: '140px' }}>
                             <span className={item.below_min ? 'text-bad' : 'text-ink'}>{n(formatQty(item.qty, item))}</span>
-                            <span className="text-muted text-xs"> / {item.min_stock != null ? n(String(item.min_stock)) : '—'}</span>
+                            <span className="text-muted text-xs"> / {item.min_stock != null ? n(formatQty(item.min_stock, item)) : '—'}</span>
                             <ProgressBar value={minPct} color={item.below_min ? 'var(--bad)' : 'var(--ok)'} />
                           </td>
                           <td className="px-2.5 py-2.5 border-b border-line">
@@ -223,7 +222,7 @@ export function WarehousePage() {
                             </td>
                           </tr>
                         )}
-                      </>
+                      </Fragment>
                     )
                   })}
                 </tbody>

@@ -75,7 +75,8 @@ export function MoveModal({ onClose, onDone }: { onClose: () => void; onDone: ()
     [stock, search],
   )
 
-  const isOutbound = op !== 'receipt' && op !== 'return_apartment' && op !== 'return_holder'
+  // предупреждение «не хватает» относится только к операциям, которые берут товар со склада
+  const isOutbound = op === 'issue_apartment' || op === 'writeoff_warehouse' || op === 'issue_holder'
 
   const addToCart = (item: WarehouseStockRow) => {
     setCart((prev) => {
@@ -127,11 +128,12 @@ export function MoveModal({ onClose, onDone }: { onClose: () => void; onDone: ()
         const baseQty = getBaseQty(line)
         if (!baseQty || baseQty <= 0) return null
         const costNum = opDef.needsCost && line.unitCost ? Number(line.unitCost) : null
+        if (costNum !== null && !(costNum >= 0)) return null
         return { item_id: line.itemId, qty: baseQty, unit_cost: costNum }
       })
       .filter((l): l is { item_id: number; qty: number; unit_cost: number | null } => l !== null)
-    if (lines.length === 0) {
-      toast(t.admin.move.empty, 'error')
+    if (lines.length < cart.length) {
+      toast(t.admin.move.invalidLines, 'error')
       return
     }
     setPosting(true)
@@ -318,7 +320,6 @@ export function MoveModal({ onClose, onDone }: { onClose: () => void; onDone: ()
                 const stockQty = line.stockQty ?? stockMap.get(line.itemId) ?? null
                 const overStock = isOutbound && stockQty !== null && baseQty > stockQty
                 const unitLabel = line.unitMode === 'packs' ? line.packLabel : t.common.units[line.baseUnit as keyof typeof t.common.units] ?? line.baseUnit
-                const step = line.unitMode === 'packs' ? 1 : line.packSize
                 return (
                   <div key={line.itemId} className="bg-surface rounded-lg border border-line px-3 py-3">
                     <div className="flex items-center justify-between mb-2">
@@ -367,7 +368,7 @@ export function MoveModal({ onClose, onDone }: { onClose: () => void; onDone: ()
                           type="number"
                           value={line.qty}
                           onChange={(e) => updateLine(idx, { qty: e.target.value })}
-                          step={step}
+                          step="any"
                           className="w-14 bg-transparent text-center text-sm py-1.5 focus:outline-none"
                         />
                         <button
@@ -392,6 +393,11 @@ export function MoveModal({ onClose, onDone }: { onClose: () => void; onDone: ()
                         />
                       )}
                     </div>
+                    {opDef.needsCost && line.packSize > 1 && !line.unitCost && (
+                      <p className="text-xs text-muted mt-1">
+                        {t.admin.move.costHint} {t.common.units[line.baseUnit as keyof typeof t.common.units] ?? line.baseUnit}
+                      </p>
+                    )}
                     {opDef.needsCost && line.packSize > 1 && line.unitCost && (
                       <p className="text-xs text-muted mt-1">
                         {t.admin.move.costPerPack}: {(Number(line.unitCost) * line.packSize).toFixed(2)}

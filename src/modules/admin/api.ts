@@ -381,6 +381,11 @@ export async function fetchDocuments(docType?: string, offset = 0, limit = 50): 
   return rows.map((r) => ({ ...r, supplier_name: r.supplier_id ? supplierMap.get(r.supplier_id) ?? null : null }))
 }
 
+export async function voidDocument(docId: string, reason: string | null): Promise<void> {
+  const { error, status } = await supabase.rpc('void_document', { p_doc: docId, p_reason: reason })
+  if (error) throw toApiError(error, status)
+}
+
 export async function fetchDocumentMoves(docId: string): Promise<Array<StockMoveRow & { item_name: string; item_base_unit: string; item_pack_size: number; item_pack_label: string }>> {
   const { data, error, status } = await supabase
     .from('stock_moves')
@@ -796,11 +801,15 @@ export async function fetchItemStockSummary(
 }
 
 export async function itemHasHistory(itemId: number): Promise<boolean> {
-  const [moves, norms, poLines, invLines] = await Promise.all([
+  const [moves, norms, poLines, invLines, roomNorms, roomStock, incidents, cleanLines] = await Promise.all([
     supabase.from('stock_moves').select('id', { head: true, count: 'exact' }).eq('item_id', itemId),
     supabase.from('norm_rules').select('id', { head: true, count: 'exact' }).eq('item_id', itemId),
     supabase.from('purchase_order_lines').select('id', { head: true, count: 'exact' }).eq('item_id', itemId),
     supabase.from('inventory_lines').select('id', { head: true, count: 'exact' }).eq('item_id', itemId),
+    supabase.from('room_norms').select('id', { head: true, count: 'exact' }).eq('item_id', itemId),
+    supabase.from('room_stock').select('id', { head: true, count: 'exact' }).eq('item_id', itemId),
+    supabase.from('incidents').select('id', { head: true, count: 'exact' }).eq('item_id', itemId),
+    supabase.from('cleaning_event_lines').select('id', { head: true, count: 'exact' }).eq('item_id', itemId),
   ])
-  return (moves.count ?? 0) > 0 || (norms.count ?? 0) > 0 || (poLines.count ?? 0) > 0 || (invLines.count ?? 0) > 0
+  return [moves, norms, poLines, invLines, roomNorms, roomStock, incidents, cleanLines].some((r) => (r.count ?? 0) > 0)
 }
