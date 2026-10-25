@@ -487,6 +487,7 @@ export const en: Dict = {
       normsHint: 'Template norms apply by apartment type. Overrides take priority. Set qty to 0 to exclude an item.',
       searchItems: 'Search items',
       showAllItems: 'Show all categories',
+      normExclusiveHint: 'Items already in «Turnover replenishment» or «Cleaning consumption» are hidden here, otherwise they would be deducted twice.',
       normTypeLabel: 'Norm type',
       badgeExcluded: 'Excluded',
       badgeCustom: 'Custom',

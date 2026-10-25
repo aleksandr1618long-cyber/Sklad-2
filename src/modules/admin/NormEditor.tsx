@@ -109,6 +109,9 @@ export function NormEditor({
                   />
                   {t.admin.apartments.showAllItems}
                 </label>
+                {normType !== 'asset_standing' && (
+                  <p className="text-xs text-muted mt-2">{t.admin.apartments.normExclusiveHint}</p>
+                )}
               </>
             )}
           </div>

@@ -393,7 +393,11 @@ export function NormsTab({
           note={editing.note}
           isEdit={editing.isEdit}
           catalog={catalog}
-          excludeItemIds={new Set((merged.get(editing.normType) ?? []).map((r) => r.itemId))}
+          excludeItemIds={new Set(
+            Array.from(merged.entries())
+              .filter(([nt]) => nt === editing.normType || (nt !== 'asset_standing' && editing.normType !== 'asset_standing'))
+              .flatMap(([, rows]) => rows.map((r) => r.itemId)),
+          )}
           saving={savingNorm}
           onSave={handleSave}
           onClose={() => setEditing(null)}

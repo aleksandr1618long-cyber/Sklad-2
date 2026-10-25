@@ -184,6 +184,12 @@ export function NormTemplatesPage() {
           norm={editingNorm}
           normType={addingNormType ?? editingNorm!.norm_type}
           items={stock}
+          takenIds={new Set(
+            norms
+              .filter((r) => r.id !== editingNorm?.id && (r.norm_type === (addingNormType ?? editingNorm!.norm_type) ||
+                (r.norm_type !== 'asset_standing' && (addingNormType ?? editingNorm!.norm_type) !== 'asset_standing')))
+              .map((r) => r.item_id),
+          )}
           onClose={() => { setEditingNorm(null); setAddingNormType(null) }}
           onSave={(normType, itemId, qty, note) => handleSave(normType, itemId, qty, note, editingNorm?.id)}
         />
@@ -196,12 +202,14 @@ function NormEditorModal({
   norm,
   normType,
   items,
+  takenIds,
   onClose,
   onSave,
 }: {
   norm: NormRuleRow | null
   normType: NormType
   items: WarehouseStockRow[]
+  takenIds: Set<number>
   onClose: () => void
   onSave: (normType: string, itemId: number, qty: number, note: string | null) => void
 }) {
@@ -230,8 +238,11 @@ function NormEditorModal({
             <label className="block text-sm text-ink mb-1">{t.admin.normTemplates.item}</label>
             <select value={itemId} onChange={(e) => setItemId(Number(e.target.value))} className="w-full bg-app rounded-xl px-4 py-2.5 text-sm focus:outline-none">
               <option value="0">—</option>
-              {items.map((i) => <option key={i.item_id} value={i.item_id}>{i.name}</option>)}
+              {items.filter((i) => !takenIds.has(i.item_id) || i.item_id === itemId).map((i) => <option key={i.item_id} value={i.item_id}>{i.name}</option>)}
             </select>
+            {normType !== 'asset_standing' && (
+              <p className="text-xs text-muted mt-1">{t.admin.apartments.normExclusiveHint}</p>
+            )}
           </div>
           <div>
             <label className="block text-sm text-ink mb-1">{t.admin.normTemplates.qty}</label>
