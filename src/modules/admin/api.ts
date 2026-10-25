@@ -381,6 +381,111 @@ export async function fetchDocuments(docType?: string, offset = 0, limit = 50): 
   return rows.map((r) => ({ ...r, supplier_name: r.supplier_id ? supplierMap.get(r.supplier_id) ?? null : null }))
 }
 
+export type PurchaseOrderStatus = 'draft' | 'sent' | 'received' | 'cancelled'
+
+export interface PurchaseOrderRow {
+  id: string
+  number: string | null
+  status: PurchaseOrderStatus
+  supplier_id: number | null
+  supplier: string | null
+  note: string | null
+  created_at: string
+  sent_at: string | null
+  received_at: string | null
+  lines: number
+  total_qty: number
+  received_qty: number
+  est_cost: number | null
+}
+
+export interface PurchaseOrderLine extends Pick<Item, 'base_unit' | 'pack_size' | 'pack_label'> {
+  item_id: number
+  name: string
+  qty: number
+  unit_cost: number | null
+  received_qty: number
+}
+
+export async function fetchPurchaseOrders(): Promise<PurchaseOrderRow[]> {
+  const { data, error, status } = await supabase
+    .from('purchase_orders_v')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(200)
+  if (error) throw toApiError(error, status)
+  return (data ?? []).map((r: Record<string, unknown>) => ({
+    ...(r as unknown as PurchaseOrderRow),
+    lines: Number(r.lines),
+    total_qty: Number(r.total_qty),
+    received_qty: Number(r.received_qty),
+    est_cost: r.est_cost == null ? null : Number(r.est_cost),
+  }))
+}
+
+export async function fetchPurchaseOrderLines(orderId: string): Promise<PurchaseOrderLine[]> {
+  const { data, error, status } = await supabase
+    .from('purchase_order_lines')
+    .select('item_id,qty,unit_cost,received_qty,items(name,base_unit,pack_size,pack_label)')
+    .eq('order_id', orderId)
+    .order('id')
+  if (error) throw toApiError(error, status)
+  type ItemPart = Pick<Item, 'base_unit' | 'pack_size' | 'pack_label'> & { name: string }
+  return ((data ?? []) as unknown as Array<{
+    item_id: number
+    qty: number | string
+    unit_cost: number | string | null
+    received_qty: number | string
+    items: ItemPart | ItemPart[] | null
+  }>).map((r) => {
+    const it = Array.isArray(r.items) ? r.items[0] : r.items
+    return {
+      item_id: r.item_id,
+      name: it?.name ?? `#${r.item_id}`,
+      base_unit: it?.base_unit ?? 'pcs',
+      pack_size: Number(it?.pack_size ?? 1) || 1,
+      pack_label: it?.pack_label ?? '',
+      qty: Number(r.qty),
+      unit_cost: r.unit_cost == null ? null : Number(r.unit_cost),
+      received_qty: Number(r.received_qty),
+    } as PurchaseOrderLine
+  })
+}
+
+export async function generatePurchaseOrders(): Promise<number> {
+  const { data, error, status } = await supabase.rpc('po_generate')
+  if (error) throw toApiError(error, status)
+  return Array.isArray(data) ? data.length : 0
+}
+
+export async function setPurchaseOrderLine(
+  orderId: string,
+  itemId: number,
+  qty: number,
+  unitCost: number | null,
+): Promise<void> {
+  const { error, status } = await supabase.rpc('po_set_line', {
+    p_order: orderId,
+    p_item: itemId,
+    p_qty: qty,
+    p_unit_cost: unitCost,
+  })
+  if (error) throw toApiError(error, status)
+}
+
+export async function setPurchaseOrderStatus(orderId: string, newStatus: 'sent' | 'cancelled'): Promise<void> {
+  const { error, status } = await supabase.rpc('po_set_status', { p_order: orderId, p_status: newStatus })
+  if (error) throw toApiError(error, status)
+}
+
+export async function receivePurchaseOrder(
+  orderId: string,
+  lines: Array<{ item_id: number; qty: number; unit_cost: number | null }>,
+): Promise<void> {
+  const { error, status } = await supabase.rpc('po_receive', { p_order: orderId, p_lines: lines })
+  if (error) throw toApiError(error, status)
+}
+
 export async function voidDocument(docId: string, reason: string | null): Promise<void> {
   const { error, status } = await supabase.rpc('void_document', { p_doc: docId, p_reason: reason })
   if (error) throw toApiError(error, status)
