@@ -338,6 +338,7 @@ export async function postDocument(params: {
   staff?: number | null
   supplier?: number | null
   note?: string | null
+  doc_date?: string | null
 }): Promise<PostDocumentResult> {
   const { data, error, status } = await supabase.rpc('post_document', {
     p_op: params.op,
@@ -346,6 +347,8 @@ export async function postDocument(params: {
     p_staff: params.staff ?? null,
     p_supplier: params.supplier ?? null,
     p_note: params.note ?? null,
+    // дата передаётся только для операции задним числом: так форма продолжает работать и до обновления базы
+    ...(params.doc_date ? { p_doc_date: params.doc_date } : {}),
   })
   if (error) throw toApiError(error, status)
   return data as PostDocumentResult

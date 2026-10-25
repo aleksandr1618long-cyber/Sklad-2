@@ -7,6 +7,13 @@ import { formatQty } from '@/lib/format'
 import { toast, errorMessage } from '@/lib/toast'
 import { Plus, Minus, Trash2, Loader as Loader2, Check, X, FileText, TriangleAlert as AlertTriangle } from 'lucide-react'
 
+// локальная дата YYYY-MM-DD (не UTC), чтобы около полуночи «сегодня» не съезжало
+function localToday(): string {
+  const d = new Date()
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
+  return d.toISOString().slice(0, 10)
+}
+
 interface MoveOpDef {
   op: string
   label: string
@@ -52,6 +59,7 @@ export function MoveModal({ onClose, onDone }: { onClose: () => void; onDone: ()
   const [supplierId, setSupplierId] = useState<number | null>(null)
   const [itemMeta, setItemMeta] = useState<Map<number, { cost: number | null; supplier: number | null }>>(new Map())
   const [note, setNote] = useState('')
+  const [docDate, setDocDate] = useState(localToday())
   const [cart, setCart] = useState<CartLine[]>([])
   const [search, setSearch] = useState('')
   const [posting, setPosting] = useState(false)
@@ -149,6 +157,7 @@ export function MoveModal({ onClose, onDone }: { onClose: () => void; onDone: ()
         staff: opDef.needsStaff ? staffId : null,
         supplier: opDef.needsCost ? supplierId : null,
         note: note.trim() || null,
+        doc_date: docDate && docDate !== localToday() ? docDate : null,
       })
       setResult(res)
     } catch (e) {
@@ -415,6 +424,21 @@ export function MoveModal({ onClose, onDone }: { onClose: () => void; onDone: ()
               })}
             </div>
           )}
+
+          {/* Date */}
+          <div>
+            <label className="block text-sm font-medium text-ink mb-1.5">{t.admin.move.docDate}</label>
+            <input
+              type="date"
+              value={docDate}
+              max={localToday()}
+              onChange={(e) => setDocDate(e.target.value)}
+              className="w-full bg-surface rounded-lg px-4 py-2.5 text-sm border border-line focus:border-accent focus:outline-none"
+            />
+            {docDate && docDate !== localToday() && (
+              <p className="text-xs text-muted mt-1">{t.admin.move.docDateHint}</p>
+            )}
+          </div>
 
           {/* Note */}
           <div>

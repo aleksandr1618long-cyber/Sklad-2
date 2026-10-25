@@ -427,6 +427,8 @@ export const en: Dict = {
       qty: 'Qty',
       unitCost: 'Unit cost',
       note: 'Note',
+      docDate: 'Operation date',
+      docDateHint: 'The operation will be posted with the chosen date. Stock is calculated from all entries regardless of date.',
       post: 'Post',
       empty: 'Add at least one item',
       success: 'Operation posted',
