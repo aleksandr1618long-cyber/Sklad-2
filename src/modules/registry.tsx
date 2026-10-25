@@ -30,6 +30,7 @@ const CatalogPage = lazy(() => import('@/modules/admin/CatalogPage').then(m => (
 const QrPage = lazy(() => import('@/modules/admin/QrPage').then(m => ({ default: m.QrPage })))
 const ReportsPage = lazy(() => import('@/modules/admin/ReportsPage').then(m => ({ default: m.ReportsPage })))
 const HistoryPage = lazy(() => import('@/modules/history/HistoryPage').then(m => ({ default: m.HistoryPage })))
+const InventoryPage = lazy(() => import('@/modules/admin/InventoryPage').then(m => ({ default: m.InventoryPage })))
 const OrdersPage = lazy(() => import('@/modules/admin/OrdersPage').then(m => ({ default: m.OrdersPage })))
 const DocumentsPage = lazy(() => import('@/modules/admin/DocumentsPage').then(m => ({ default: m.DocumentsPage })))
 const DocumentDetailPage = lazy(() => import('@/modules/admin/DocumentDetailPage').then(m => ({ default: m.DocumentDetailPage })))
@@ -90,6 +91,7 @@ export function AdminRoutes() {
           <Route path="more/qr" element={<QrPage />} />
           <Route path="more/reports" element={<ReportsPage />} />
           <Route path="more/history" element={<HistoryPage />} />
+          <Route path="more/inventory" element={<InventoryPage />} />
           <Route path="more/orders" element={<OrdersPage />} />
           <Route path="more/documents" element={<DocumentsPage />} />
           <Route path="more/documents/:id" element={<DocumentDetailPage />} />

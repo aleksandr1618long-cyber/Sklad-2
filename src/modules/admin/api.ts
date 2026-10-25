@@ -381,6 +381,103 @@ export async function fetchDocuments(docType?: string, offset = 0, limit = 50): 
   return rows.map((r) => ({ ...r, supplier_name: r.supplier_id ? supplierMap.get(r.supplier_id) ?? null : null }))
 }
 
+export type InventoryStatus = 'open' | 'closed' | 'void'
+
+export interface InventoryRow {
+  id: string
+  scope: 'apartment' | 'warehouse'
+  apartment_id: number | null
+  apartment_code: string | null
+  status: InventoryStatus
+  note: string | null
+  created_at: string
+  closed_at: string | null
+}
+
+export interface InventoryLine extends Pick<Item, 'base_unit' | 'pack_size' | 'pack_label'> {
+  item_id: number
+  name: string
+  expected: number
+  actual: number
+  decision: 'pending' | 'accepted' | 'rejected'
+}
+
+export async function fetchInventories(): Promise<InventoryRow[]> {
+  const { data, error, status } = await supabase
+    .from('inventories')
+    .select('id,scope,apartment_id,status,note,created_at,closed_at,apartments(code)')
+    .order('created_at', { ascending: false })
+    .limit(200)
+  if (error) throw toApiError(error, status)
+  return ((data ?? []) as unknown as Array<Omit<InventoryRow, 'apartment_code'> & { apartments: { code: string } | { code: string }[] | null }>).map((r) => {
+    const { apartments, ...rest } = r
+    const apt = Array.isArray(apartments) ? apartments[0] : apartments
+    return { ...rest, apartment_code: apt?.code ?? null }
+  })
+}
+
+export async function fetchInventoryLines(inventoryId: string): Promise<InventoryLine[]> {
+  const { data, error, status } = await supabase
+    .from('inventory_lines')
+    .select('item_id,expected,actual,decision,items(name,base_unit,pack_size,pack_label)')
+    .eq('inventory_id', inventoryId)
+    .order('id')
+  if (error) throw toApiError(error, status)
+  type ItemPart = Pick<Item, 'base_unit' | 'pack_size' | 'pack_label'> & { name: string }
+  return ((data ?? []) as unknown as Array<{
+    item_id: number
+    expected: number | string
+    actual: number | string
+    decision: InventoryLine['decision']
+    items: ItemPart | ItemPart[] | null
+  }>).map((r) => {
+    const it = Array.isArray(r.items) ? r.items[0] : r.items
+    return {
+      item_id: r.item_id,
+      name: it?.name ?? `#${r.item_id}`,
+      base_unit: it?.base_unit ?? 'pcs',
+      pack_size: Number(it?.pack_size ?? 1) || 1,
+      pack_label: it?.pack_label ?? '',
+      expected: Number(r.expected),
+      actual: Number(r.actual),
+      decision: r.decision,
+    } as InventoryLine
+  })
+}
+
+export async function startInventory(scope: 'apartment' | 'warehouse', apartmentId: number | null, note: string | null): Promise<string> {
+  const { data, error, status } = await supabase.rpc('inventory_start', {
+    p_scope: scope,
+    p_apartment: apartmentId,
+    p_note: note,
+  })
+  if (error) throw toApiError(error, status)
+  return data as unknown as string
+}
+
+export async function setInventoryActual(inventoryId: string, itemId: number, actual: number): Promise<void> {
+  const { error, status } = await supabase.rpc('inventory_set_actual', {
+    p_inventory: inventoryId,
+    p_item: itemId,
+    p_actual: actual,
+  })
+  if (error) throw toApiError(error, status)
+}
+
+export async function closeInventory(inventoryId: string, rejectItems: number[]): Promise<number> {
+  const { data, error, status } = await supabase.rpc('inventory_close', {
+    p_inventory: inventoryId,
+    p_reject_items: rejectItems,
+  })
+  if (error) throw toApiError(error, status)
+  return Number((data as { adjusted?: number } | null)?.adjusted ?? 0)
+}
+
+export async function cancelInventory(inventoryId: string): Promise<void> {
+  const { error, status } = await supabase.rpc('inventory_cancel', { p_inventory: inventoryId })
+  if (error) throw toApiError(error, status)
+}
+
 export type PurchaseOrderStatus = 'draft' | 'sent' | 'received' | 'cancelled'
 
 export interface PurchaseOrderRow {
