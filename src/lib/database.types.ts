@@ -76,6 +76,8 @@ export interface Item {
   pack_size: number
   pack_label: string
   min_stock: number | null
+  target_stock: number | null
+  note: string | null
   track_on_hand: boolean
   qr_code: string | null
   photo_path: string | null

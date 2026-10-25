@@ -345,6 +345,9 @@ function ItemEditor({
     pack_size: number
     pack_label: string
     min_stock: number | null
+    target_stock: number | null
+    note: string | null
+    sort: number
     track_on_hand: boolean
     active?: boolean
     supplier_id?: number | null
@@ -357,11 +360,16 @@ function ItemEditor({
   const [packSize, setPackSize] = useState(String(item?.pack_size ?? 1))
   const [packLabel, setPackLabel] = useState(item?.pack_label ?? t.common.units.pcs)
   const [minStock, setMinStock] = useState(item?.min_stock != null ? String(item.min_stock) : '')
+  const [targetStock, setTargetStock] = useState(item?.target_stock != null ? String(item.target_stock) : '')
+  const [note, setNote] = useState(item?.note ?? '')
+  const [sort, setSort] = useState(String(item?.sort ?? 0))
   const [trackOnHand, setTrackOnHand] = useState(item?.track_on_hand ?? false)
   const [active, setActive] = useState(item?.active ?? true)
   const [unitLocked, setUnitLocked] = useState(false)
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [supplierId, setSupplierId] = useState<number | null>(item?.supplier_id ?? null)
+
+  const targetInvalid = targetStock.trim() !== '' && (!(Number(targetStock) >= 0) || (minStock.trim() !== '' && Number(targetStock) < Number(minStock)))
 
   useEffect(() => {
     fetchSuppliers().then(setSuppliers).catch((e) => console.error(friendlyMessage(e)))
@@ -422,6 +430,20 @@ function ItemEditor({
             placeholder="—"
             className="w-full bg-app rounded-lg px-4 py-2.5 text-sm focus:outline-none" />
         </Field>
+        <Field label={t.admin.catalog.targetStock}>
+          <input type="number" min="0" step="0.001" value={targetStock} onChange={(e) => setTargetStock(e.target.value)}
+            placeholder="—"
+            className="w-full bg-app rounded-lg px-4 py-2.5 text-sm focus:outline-none" />
+          {targetInvalid && <p className="text-xs text-bad mt-1">{t.admin.catalog.targetBelowMin}</p>}
+        </Field>
+        <Field label={t.admin.catalog.note}>
+          <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={300}
+            className="w-full bg-app rounded-lg px-4 py-2.5 text-sm focus:outline-none" />
+        </Field>
+        <Field label={t.admin.catalog.sortOrder}>
+          <input type="number" step="1" value={sort} onChange={(e) => setSort(e.target.value)}
+            className="w-full bg-app rounded-lg px-4 py-2.5 text-sm focus:outline-none" />
+        </Field>
         <label className="flex items-center gap-2">
           <input type="checkbox" checked={trackOnHand} onChange={(e) => setTrackOnHand(e.target.checked)}
             className="w-4 h-4 accent-[var(--accent)]" />
@@ -444,11 +466,14 @@ function ItemEditor({
           pack_size: Number(packSize),
           pack_label: packLabel.trim() || t.common.units.pcs,
           min_stock: minStock.trim() ? Number(minStock) : null,
+          target_stock: targetStock.trim() ? Number(targetStock) : null,
+          note: note.trim() || null,
+          sort: Number.isFinite(Number(sort)) ? Math.trunc(Number(sort)) : 0,
           track_on_hand: trackOnHand,
           active: item ? active : undefined,
           supplier_id: supplierId,
         })}
-        disabled={!name.trim() || !(Number(packSize) > 0) || (minStock.trim() !== '' && !(Number(minStock) >= 0))}
+        disabled={!name.trim() || !(Number(packSize) > 0) || (minStock.trim() !== '' && !(Number(minStock) >= 0)) || targetInvalid}
       />
     </Modal>
   )
@@ -458,7 +483,7 @@ function Modal({ title, children, onClose }: { title: string; children: React.Re
   return (
     <>
       <div className="fixed inset-0 bg-black/50 z-[60]" onClick={onClose} />
-      <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[61] bg-surface rounded-2xl w-full max-w-sm p-5 border border-line max-md:bottom-0 max-md:left-0 max-md:top-auto max-md:translate-x-0 max-md:translate-y-0 max-md:w-full max-md:rounded-t-2xl max-md:rounded-b-none max-md:anim-sheet max-md:max-h-[85vh] max-md:overflow-auto">
+      <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[61] bg-surface rounded-2xl w-full max-w-sm p-5 border border-line max-md:bottom-0 max-md:left-0 max-md:top-auto max-md:translate-x-0 max-md:translate-y-0 max-md:w-full max-md:rounded-t-2xl max-md:rounded-b-none max-md:anim-sheet max-md:max-h-[85vh] max-md:overflow-auto md:max-h-[90vh] md:overflow-auto">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-semibold text-ink">{title}</h3>
           <button onClick={onClose}><X className="w-5 h-5 text-muted" /></button>
