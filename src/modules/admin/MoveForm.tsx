@@ -296,8 +296,11 @@ export function MoveModal({ onClose, onDone }: { onClose: () => void; onDone: ()
               placeholder={t.admin.stock.search}
               className="w-full bg-surface rounded-lg px-4 py-2.5 text-sm border border-line focus:border-accent focus:outline-none mb-2"
             />
-            {search.trim() && (
+            {(search.trim() || cart.length === 0) && (
               <div className="bg-surface rounded-lg border border-line max-h-48 overflow-y-auto">
+                {filteredStock.length === 0 && (
+                  <p className="px-4 py-2.5 text-sm text-muted">{t.common.noResults}</p>
+                )}
                 {filteredStock.map((s) => (
                   <button
                     key={s.item_id}
@@ -421,6 +424,9 @@ export function MoveModal({ onClose, onDone }: { onClose: () => void; onDone: ()
         </div>
 
         {/* Actions */}
+        {cart.length === 0 && (
+          <p className="text-xs text-muted mt-4 text-center">{t.admin.move.empty}</p>
+        )}
         <div className="flex gap-3 mt-5">
           <button
             onClick={onClose}

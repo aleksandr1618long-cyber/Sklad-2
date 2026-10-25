@@ -197,17 +197,7 @@ export function CatalogPage() {
           message={`${t.admin.catalog.stockWarehouse}: ${n(String(deactivateTarget.stock.warehouse))}, ${t.admin.catalog.stockApartments}: ${n(String(deactivateTarget.stock.apartments))}, ${t.admin.catalog.stockHolders}: ${n(String(deactivateTarget.stock.holders))} ${deactivateTarget.unit}. ${t.admin.catalog.deactivateBody}`}
           confirmLabel={t.admin.catalog.deactivateConfirm}
           cancelLabel={t.cleaning.cancel}
-          onConfirm={async () => {
-            const target = deactivateTarget
-            setDeactivateTarget(null)
-            try {
-              await updateItem(target.id, target.params)
-              toast(t.admin.catalog.save, 'success')
-              setEditingItem(null)
-              setAddingItem(null)
-              load()
-            } catch (e) { toast(errorMessage(e), 'error') }
-          }}
+          onConfirm={() => setDeactivateTarget(null)}
           onCancel={() => setDeactivateTarget(null)}
         />
       )}
