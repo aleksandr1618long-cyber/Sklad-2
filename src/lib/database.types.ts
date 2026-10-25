@@ -78,6 +78,7 @@ export interface Item {
   min_stock: number | null
   target_stock: number | null
   note: string | null
+  default_cost: number | null
   track_on_hand: boolean
   qr_code: string | null
   photo_path: string | null

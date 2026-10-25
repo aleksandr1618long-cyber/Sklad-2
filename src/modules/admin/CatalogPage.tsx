@@ -9,6 +9,7 @@ import {
   createItem,
   updateItem,
   deleteItem,
+  postDocument,
   itemHasHistory,
   fetchItemStockSummary,
 } from '@/modules/admin/api'
@@ -251,7 +252,8 @@ export function CatalogPage() {
           categories={categories}
           defaultCategoryId={addingItem ?? editingItem?.categoryId ?? categories[0]?.id ?? 0}
           onClose={() => { setEditingItem(null); setAddingItem(null) }}
-          onSave={async (params) => {
+          onSave={async (formValues) => {
+            const { opening_qty: openingQty, ...params } = formValues
             try {
               const nameKey = params.name.trim().toLowerCase()
               if (items.some((i) => i.id !== editingItem?.item?.id && i.name.trim().toLowerCase() === nameKey)) {
@@ -268,7 +270,23 @@ export function CatalogPage() {
                 }
                 await updateItem(editingItem.item.id, params)
               } else {
-                await createItem(params)
+                const newId = await createItem(params)
+                if (openingQty != null && openingQty > 0) {
+                  try {
+                    await postDocument({
+                      op: 'receipt',
+                      lines: [{
+                        item_id: newId,
+                        qty: Math.round(openingQty * params.pack_size * 1000) / 1000,
+                        unit_cost: params.default_cost ?? null,
+                      }],
+                      supplier: params.supplier_id ?? null,
+                      note: t.admin.catalog.openingNote,
+                    })
+                  } catch (e) {
+                    toast(`${t.admin.catalog.openingFailed} ${errorMessage(e)}`, 'error')
+                  }
+                }
               }
               toast(t.admin.catalog.save, 'success')
               setEditingItem(null)
@@ -347,6 +365,8 @@ function ItemEditor({
     min_stock: number | null
     target_stock: number | null
     note: string | null
+    default_cost: number | null
+    opening_qty: number | null
     sort: number
     track_on_hand: boolean
     active?: boolean
@@ -363,6 +383,10 @@ function ItemEditor({
   const [targetStock, setTargetStock] = useState(item?.target_stock != null ? String(item.target_stock) : '')
   const [note, setNote] = useState(item?.note ?? '')
   const [sort, setSort] = useState(String(item?.sort ?? 0))
+  const [defaultCost, setDefaultCost] = useState(
+    item?.default_cost != null ? String(Math.round(item.default_cost * item.pack_size * 1e6) / 1e6) : '',
+  )
+  const [openingQty, setOpeningQty] = useState('')
   const [trackOnHand, setTrackOnHand] = useState(item?.track_on_hand ?? false)
   const [active, setActive] = useState(item?.active ?? true)
   const [unitLocked, setUnitLocked] = useState(false)
@@ -444,6 +468,18 @@ function ItemEditor({
           <input type="number" step="1" value={sort} onChange={(e) => setSort(e.target.value)}
             className="w-full bg-app rounded-lg px-4 py-2.5 text-sm focus:outline-none" />
         </Field>
+        <Field label={t.admin.catalog.defaultCost}>
+          <input type="number" min="0" step="any" value={defaultCost} onChange={(e) => setDefaultCost(e.target.value)}
+            placeholder="—"
+            className="w-full bg-app rounded-lg px-4 py-2.5 text-sm focus:outline-none" />
+        </Field>
+        {!item && (
+          <Field label={t.admin.catalog.openingQty}>
+            <input type="number" min="0" step="any" value={openingQty} onChange={(e) => setOpeningQty(e.target.value)}
+              placeholder="0"
+              className="w-full bg-app rounded-lg px-4 py-2.5 text-sm focus:outline-none" />
+          </Field>
+        )}
         <label className="flex items-center gap-2">
           <input type="checkbox" checked={trackOnHand} onChange={(e) => setTrackOnHand(e.target.checked)}
             className="w-4 h-4 accent-[var(--accent)]" />
@@ -468,12 +504,14 @@ function ItemEditor({
           min_stock: minStock.trim() ? Number(minStock) : null,
           target_stock: targetStock.trim() ? Number(targetStock) : null,
           note: note.trim() || null,
+          default_cost: defaultCost.trim() ? Number(defaultCost) / (Number(packSize) > 0 ? Number(packSize) : 1) : null,
+          opening_qty: !item && openingQty.trim() ? Number(openingQty) : null,
           sort: Number.isFinite(Number(sort)) ? Math.trunc(Number(sort)) : 0,
           track_on_hand: trackOnHand,
           active: item ? active : undefined,
           supplier_id: supplierId,
         })}
-        disabled={!name.trim() || !(Number(packSize) > 0) || (minStock.trim() !== '' && !(Number(minStock) >= 0)) || targetInvalid}
+        disabled={!name.trim() || !(Number(packSize) > 0) || (minStock.trim() !== '' && !(Number(minStock) >= 0)) || targetInvalid || (defaultCost.trim() !== '' && !(Number(defaultCost) >= 0)) || (openingQty.trim() !== '' && !(Number(openingQty) >= 0))}
       />
     </Modal>
   )

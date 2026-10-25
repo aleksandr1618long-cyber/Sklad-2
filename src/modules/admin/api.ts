@@ -937,7 +937,7 @@ export async function fetchItems(): Promise<Item[]> {
   return fetchAllPages<Item>((from, to) =>
     supabase
       .from('items')
-      .select('id,category_id,name,base_unit,pack_size,pack_label,min_stock,target_stock,note,track_on_hand,qr_code,photo_path,active,sort,supplier_id')
+      .select('id,category_id,name,base_unit,pack_size,pack_label,min_stock,target_stock,note,default_cost,track_on_hand,qr_code,photo_path,active,sort,supplier_id')
       .order('sort')
       .order('name')
       .order('id')
@@ -954,6 +954,7 @@ export async function createItem(params: {
   min_stock: number | null
   target_stock?: number | null
   note?: string | null
+  default_cost?: number | null
   sort?: number
   track_on_hand: boolean
   supplier_id?: number | null
@@ -967,7 +968,7 @@ export async function createItem(params: {
   return (data as { id: number }).id
 }
 
-export async function updateItem(id: number, patch: Partial<Pick<Item, 'name' | 'category_id' | 'base_unit' | 'pack_size' | 'pack_label' | 'min_stock' | 'target_stock' | 'note' | 'sort' | 'track_on_hand' | 'active' | 'supplier_id'>>): Promise<void> {
+export async function updateItem(id: number, patch: Partial<Pick<Item, 'name' | 'category_id' | 'base_unit' | 'pack_size' | 'pack_label' | 'min_stock' | 'target_stock' | 'note' | 'default_cost' | 'sort' | 'track_on_hand' | 'active' | 'supplier_id'>>): Promise<void> {
   const { error, status } = await supabase.from('items').update(patch).eq('id', id)
   if (error) throw toApiError(error, status)
 }

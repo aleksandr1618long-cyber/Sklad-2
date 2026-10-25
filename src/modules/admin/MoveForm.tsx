@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { fetchWarehouseStock, fetchApartmentsAdmin, fetchAllStaff, fetchSuppliers, postDocument } from '@/modules/admin/api'
+import { fetchWarehouseStock, fetchApartmentsAdmin, fetchAllStaff, fetchSuppliers, fetchItems, postDocument } from '@/modules/admin/api'
 import type { WarehouseStockRow, Apartment, Staff, Supplier, PostDocumentResult } from '@/lib/database.types'
 import { useI18n } from '@/i18n'
 import { formatQty } from '@/lib/format'
@@ -50,6 +50,7 @@ export function MoveModal({ onClose, onDone }: { onClose: () => void; onDone: ()
   const [apartmentId, setApartmentId] = useState<number | null>(null)
   const [staffId, setStaffId] = useState<number | null>(null)
   const [supplierId, setSupplierId] = useState<number | null>(null)
+  const [itemMeta, setItemMeta] = useState<Map<number, { cost: number | null; supplier: number | null }>>(new Map())
   const [note, setNote] = useState('')
   const [cart, setCart] = useState<CartLine[]>([])
   const [search, setSearch] = useState('')
@@ -57,9 +58,10 @@ export function MoveModal({ onClose, onDone }: { onClose: () => void; onDone: ()
   const [result, setResult] = useState<PostDocumentResult | null>(null)
 
   useEffect(() => {
-    Promise.all([fetchWarehouseStock(), fetchApartmentsAdmin(), fetchAllStaff(), fetchSuppliers()])
-      .then(([s, a, st, sup]) => {
+    Promise.all([fetchWarehouseStock(), fetchApartmentsAdmin(), fetchAllStaff(), fetchSuppliers(), fetchItems()])
+      .then(([s, a, st, sup, its]) => {
         setStock(s)
+        setItemMeta(new Map(its.map((i) => [i.id, { cost: i.default_cost, supplier: i.supplier_id }])))
         setApartments(a)
         setStaffList(st.filter((x) => x.active))
         setSuppliers(sup)
@@ -79,6 +81,8 @@ export function MoveModal({ onClose, onDone }: { onClose: () => void; onDone: ()
   const isOutbound = op === 'issue_apartment' || op === 'writeoff_warehouse' || op === 'issue_holder'
 
   const addToCart = (item: WarehouseStockRow) => {
+    const meta = itemMeta.get(item.item_id)
+    if (opDef.needsCost && supplierId == null && meta?.supplier != null) setSupplierId(meta.supplier)
     setCart((prev) => {
       if (prev.some((l) => l.itemId === item.item_id)) return prev
       return [...prev, {
@@ -90,7 +94,7 @@ export function MoveModal({ onClose, onDone }: { onClose: () => void; onDone: ()
         stockQty: item.qty,
         qty: '1',
         unitMode: item.pack_size > 1 ? 'packs' : 'base',
-        unitCost: '',
+        unitCost: opDef.needsCost && meta?.cost != null ? String(Math.round(meta.cost * 1e6) / 1e6) : '',
       }]
     })
   }
