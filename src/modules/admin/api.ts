@@ -767,6 +767,7 @@ export interface PendingCleaning {
   created_by: string | null
   lead_staff_id: number | null
   note: string | null
+  media_paths: string[] | null
 }
 
 export interface CleaningPreviewLine {
@@ -784,7 +785,7 @@ export interface ApproveCleaningResult {
 export async function fetchPendingCleanings(): Promise<PendingCleaning[]> {
   const { data, error, status } = await supabase
     .from('cleaning_events')
-    .select('id,apartment_id,cleaned_at,created_at,created_by,lead_staff_id,note')
+    .select('id,apartment_id,cleaned_at,created_at,created_by,lead_staff_id,note,media_paths')
     .eq('posting_status', 'pending')
     .eq('status', 'done')
     .order('created_at', { ascending: true })

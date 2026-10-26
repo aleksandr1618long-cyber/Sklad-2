@@ -43,14 +43,7 @@ function parseQty(s: string): number | null {
 
 export function RoomsPanel({ apartmentId, aptType, canEdit, totals }: Props) {
   const { t, n } = useI18n()
-  const roomNames: Record<string, string> = {
-    'Ресепшен': t.rooms.reception,
-    'Спальня': t.rooms.bedroom,
-    'Кухня': t.rooms.kitchen,
-    'Ванная': t.rooms.bathroom,
-    'Балкон': t.rooms.balcony,
-  }
-  const roomLabel = (name: string) => roomNames[name] ?? name
+  const roomLabel = (name: string) => (t.rooms.names as Record<string, string>)[name] ?? name
 
   const [rooms, setRooms] = useState<Room[]>([])
   const [rows, setRows] = useState<ApartmentRoomRow[]>([])

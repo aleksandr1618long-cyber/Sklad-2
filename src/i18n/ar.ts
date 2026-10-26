@@ -193,6 +193,14 @@ export const ar: Dict = {
     kitchen: 'المطبخ',
     bathroom: 'الحمّام',
     balcony: 'البلكونة',
+    // keys = room names as stored in the database
+    names: {
+      'Ресепшен': 'الريسبشن',
+      'Спальня': 'أوضة النوم',
+      'Кухня': 'المطبخ',
+      'Ванная': 'الحمّام',
+      'Балкон': 'البلكونة',
+    },
     createNew: 'مش في القايمة؟ اعمل غرض جديد',
     pickExisting: 'اختار من القايمة',
     newItemName: 'اسم الغرض الجديد',

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Check, X, Loader as Loader2 } from 'lucide-react'
+import { Check, X, Loader as Loader2, Camera, Video } from 'lucide-react'
 import { useI18n } from '@/i18n'
 import { formatDateTime } from '@/lib/format'
 import { toast } from '@/lib/toast'
 import { friendlyMessage } from '@/lib/errors'
 import { ErrorState } from '@/components/ErrorState'
+import { MediaViewer } from '@/modules/history/MediaViewer'
 import { useLiveRefresh } from '@/lib/realtime'
 import {
   fetchApartmentsAdmin,
@@ -18,6 +19,11 @@ import {
 import { fetchProfileName } from '@/modules/incidents/IncidentDetailModal'
 import type { Apartment } from '@/lib/database.types'
 
+function isVideoPath(path: string): boolean {
+  const ext = path.split('.').pop()?.toLowerCase() ?? ''
+  return ext === 'mp4' || ext === 'mov' || ext === 'webm'
+}
+
 export function AdminCleaningApprovals() {
   const { t, n } = useI18n()
   const [items, setItems] = useState<PendingCleaning[]>([])
@@ -30,6 +36,7 @@ export function AdminCleaningApprovals() {
   const [action, setAction] = useState<{ item: PendingCleaning; decision: 'confirm' | 'reject' } | null>(null)
   const [note, setNote] = useState('')
   const [processing, setProcessing] = useState(false)
+  const [viewerPaths, setViewerPaths] = useState<string[] | null>(null)
 
   const load = useCallback((silent?: boolean) => {
     const quiet = silent === true
@@ -107,6 +114,20 @@ export function AdminCleaningApprovals() {
                 {author && <p className="text-xs text-muted">{t.admin.approvals.submittedBy}: {author}</p>}
                 {item.note && <p className="text-sm text-ink mt-2">{item.note}</p>}
 
+                {(item.media_paths?.length ?? 0) > 0 && (
+                  <button
+                    onClick={() => setViewerPaths(item.media_paths)}
+                    className="mt-3 w-full flex items-center gap-3 bg-app rounded-lg px-3 py-2 min-h-[44px] text-left"
+                  >
+                    <span className="flex items-center gap-1 text-muted">
+                      <Camera className="w-4 h-4" /><Video className="w-4 h-4" />
+                    </span>
+                    <span className="text-sm text-ink">
+                      {t.qr.detailPhotos}: {(item.media_paths ?? []).filter((p) => !isVideoPath(p)).length} {t.qr.photo} / {(item.media_paths ?? []).filter(isVideoPath).length} {t.qr.video}
+                    </span>
+                  </button>
+                )}
+
                 <div className="mt-3 bg-app rounded-lg px-3 py-2">
                   <p className="text-xs font-medium text-muted mb-1">{t.admin.approvals.willWriteOff}</p>
                   {lines.length === 0 ? (
@@ -136,6 +157,10 @@ export function AdminCleaningApprovals() {
             )
           })}
         </div>
+      )}
+
+      {viewerPaths && viewerPaths.length > 0 && (
+        <MediaViewer bucket="cleaning-media" paths={viewerPaths} onClose={() => setViewerPaths(null)} />
       )}
 
       {action && (

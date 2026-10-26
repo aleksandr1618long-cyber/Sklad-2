@@ -192,6 +192,14 @@ export const en: Dict = {
     kitchen: 'Kitchen',
     bathroom: 'Bathroom',
     balcony: 'Balcony',
+    // keys = room names as stored in the database
+    names: {
+      'Ресепшен': 'Reception',
+      'Спальня': 'Bedroom',
+      'Кухня': 'Kitchen',
+      'Ванная': 'Bathroom',
+      'Балкон': 'Balcony',
+    },
     createNew: 'Not in the list? Create a new item',
     pickExisting: 'Pick from the list',
     newItemName: 'New item name',

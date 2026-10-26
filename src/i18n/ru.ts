@@ -190,6 +190,14 @@ export const ru = {
     kitchen: 'Кухня',
     bathroom: 'Ванная',
     balcony: 'Балкон',
+    // keys = room names as stored in the database
+    names: {
+      'Ресепшен': 'Ресепшен',
+      'Спальня': 'Спальня',
+      'Кухня': 'Кухня',
+      'Ванная': 'Ванная',
+      'Балкон': 'Балкон',
+    },
     createNew: 'Нет в списке? Создать новый предмет',
     pickExisting: 'Выбрать из списка',
     newItemName: 'Название нового предмета',
