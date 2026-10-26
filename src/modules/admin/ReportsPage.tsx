@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { Download, RefreshCw } from 'lucide-react'
 import { useI18n } from '@/i18n'
 import { supabase } from '@/lib/supabase'
@@ -89,18 +89,23 @@ export function ReportsPage() {
   const [sourceFilter, setSourceFilter] = useState('all')
   const [reloadToken, setReloadToken] = useState(0)
 
-  const range = rangeFor(period, from, to)
+  // range — только для подписи периода; сам запрос считает диапазон заново
+  const range = useMemo(() => rangeFor(period, from, to), [period, from, to, reloadToken])
+  const requestId = useRef(0)
 
   const loadData = useCallback((silent?: boolean) => {
-    if (!range) return
+    const current = rangeFor(period, from, to)
+    const id = ++requestId.current
+    if (!current) { setLoading(false); return }
     const quiet = silent === true
     if (!quiet) { setLoading(true); setError(null) }
     Promise.all([
-      fetchReportStockMoves(cairoLocalToISO(`${range.from}T00:00`)!, cairoLocalToISO(`${range.to}T00:00`)!),
+      fetchReportStockMoves(cairoLocalToISO(`${current.from}T00:00`)!, cairoLocalToISO(`${current.to}T00:00`)!),
       fetchReportWarehouseStock(),
       supabase.from('settings').select('value').eq('key', 'currency').maybeSingle(),
     ])
       .then(([nextMoves, nextStock, settingResult]) => {
+        if (id !== requestId.current) return
         if (settingResult.error) throw new Error(settingResult.error.message)
         const value = settingResult.data?.value as unknown
         const configured = typeof value === 'string' ? value : value && typeof value === 'object' && 'currency' in value ? (value as CurrencySetting).currency : null
@@ -109,13 +114,14 @@ export function ReportsPage() {
         setCurrency(typeof configured === 'string' && configured.length === 3 ? configured : 'EGP')
       })
       .catch((e: unknown) => {
+        if (id !== requestId.current) return
         if (!quiet) {
           setError(errorMessage(e))
           toast(errorMessage(e), 'error')
         }
       })
-      .finally(() => { if (!quiet) setLoading(false) })
-  }, [range])
+      .finally(() => { if (id === requestId.current && !quiet) setLoading(false) })
+  }, [period, from, to])
 
   useEffect(() => { loadData() }, [loadData, reloadToken])
   useLiveRefresh(['stock_moves', 'cleaning_events', 'incidents', 'items'], () => loadData(true))
