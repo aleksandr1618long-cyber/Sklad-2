@@ -61,8 +61,11 @@ function stopIfIdle(): void {
   if (fallbackTimer) { clearInterval(fallbackTimer); fallbackTimer = null }
 }
 
-/** Вызывает reload (с задержкой 400 мс, схлопывая серии событий) при изменении любой из tables. */
-export function useLiveRefresh(tables: readonly string[], reload: () => void): void {
+/**
+ * Вызывает reload (с задержкой 400 мс, схлопывая серии событий) при изменении любой из tables.
+ * reload получает таблицу, которая изменилась; "*" — общая пересинхронизация (возврат в приложение, сеть, таймер).
+ */
+export function useLiveRefresh(tables: readonly string[], reload: (table: string) => void): void {
   const reloadRef = useRef(reload)
   useEffect(() => { reloadRef.current = reload })
   const key = tables.join(',')
@@ -70,10 +73,17 @@ export function useLiveRefresh(tables: readonly string[], reload: () => void): v
   useEffect(() => {
     const watched = new Set(key.split(','))
     let timer: ReturnType<typeof setTimeout> | null = null
+    let changed: string | null = null   // a specific table seen in this debounce window
     const listener: Listener = (table) => {
       if (table !== '*' && !watched.has(table)) return
+      if (table !== '*') changed = table
       if (timer) clearTimeout(timer)
-      timer = setTimeout(() => { timer = null; reloadRef.current() }, DEBOUNCE_MS)
+      timer = setTimeout(() => {
+        timer = null
+        const which = changed ?? '*'
+        changed = null
+        reloadRef.current(which)
+      }, DEBOUNCE_MS)
     }
     listeners.add(listener)
     start()

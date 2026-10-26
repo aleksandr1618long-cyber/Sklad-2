@@ -95,12 +95,16 @@ export function QrApartmentPage() {
   const [noteFileUrls, setNoteFileUrls] = useState<Map<string, string>>(new Map())
   const [incidentFileUrls, setIncidentFileUrls] = useState<Map<string, string>>(new Map())
 
-  const loadAll = useCallback(async () => {
+  // The catalog (names/categories) is the heaviest request and changes rarely: it is loaded on open and on
+  // "items" events, not on every comment/incident/cleaning event or timer tick.
+  const itemsLoadedAt = useRef(0)
+
+  const loadAll = useCallback(async (withItems = true) => {
     if (!aptId || !profileId) return
     const results = await Promise.allSettled([
       fetchApartment(aptId),
       fetchNorms(profileId, aptId),
-      fetchItems(),
+      withItems ? fetchItems() : Promise.resolve<SvItem[] | null>(null),
       fetchNotes(aptId),
       fetchWhatsappContacts(),
       fetchApartmentIncidents(aptId),
@@ -112,7 +116,10 @@ export function QrApartmentPage() {
     setNotFound(false)
     setApartment(apt)
     if (results[1].status === 'fulfilled') setNorms(results[1].value)
-    if (results[2].status === 'fulfilled') setItems(results[2].value)
+    if (results[2].status === 'fulfilled' && results[2].value) {
+      setItems(results[2].value)
+      itemsLoadedAt.current = Date.now()
+    }
     if (results[3].status === 'fulfilled') setNotes(results[3].value)
     if (results[4].status === 'fulfilled') setContacts(results[4].value)
     if (results[5].status === 'fulfilled') setIncidents(results[5].value)
@@ -145,10 +152,20 @@ export function QrApartmentPage() {
     }
   }, [aptId, invalidId, loadAll, profileId, reloadKey])
 
+  // Data of this apartment: everything except the catalog.
   useLiveRefresh(
     ['apartments', 'apartment_notes', 'contacts', 'incidents', 'cleaning_events', 'items', 'norm_rules'],
-    () => { if (navigator.onLine) loadAll().catch(() => {}) },
+    () => { if (navigator.onLine) loadAll(false).catch(() => {}) },
   )
+
+  // Catalog: only when it changed, plus a safety refresh after a reconnect/timer if it is older than 10 minutes.
+  useLiveRefresh(['items'], (table) => {
+    if (!navigator.onLine) return
+    if (table === '*' && Date.now() - itemsLoadedAt.current < 10 * 60_000) return
+    fetchItems()
+      .then((v) => { setItems(v); itemsLoadedAt.current = Date.now() })
+      .catch(() => {})
+  })
 
   const itemCategoryMap = useMemo(() => {
     const map = new Map<number, string>()
