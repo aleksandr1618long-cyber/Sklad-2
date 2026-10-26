@@ -87,7 +87,7 @@ export function ApartmentDetail() {
 
   return (
     <div className="min-h-screen bg-app">
-      <div className="bg-surface border-b border-line sticky top-0 z-30">
+      <div className="bg-surface border-b border-line sticky top-11 z-30">
         <div className="px-4 py-3 flex items-center gap-3">
           <button onClick={() => navigate('/sv')} className="p-1 -ml-1">
             <ArrowLeft className="w-5 h-5 text-muted" />

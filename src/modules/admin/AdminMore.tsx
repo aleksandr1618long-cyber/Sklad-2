@@ -67,7 +67,7 @@ export function AdminMore() {
           </div>
           <button
             onClick={signOut}
-            className="w-full mt-3 bg-white border border-line text-bad rounded-xl py-3 font-medium"
+            className="w-full mt-3 bg-surface border border-line text-bad rounded-xl py-3 font-medium"
           >
             {t.profile.logout}
           </button>

@@ -221,6 +221,7 @@ export const ar: Dict = {
     loadFailed: 'فشل تحميل البيانات',
   },
   common: {
+    back: 'رجوع',
     notFound: 'مش موجود',
     noResults: 'مفيش نتائج',
     close: 'اقفل',

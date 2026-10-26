@@ -305,7 +305,7 @@ export function QrApartmentPage() {
   return (
     <div className="min-h-screen bg-app">
       {/* Header */}
-      <div className="bg-surface border-b border-line sticky top-0 z-30">
+      <div className="bg-surface border-b border-line sticky top-11 z-30">
         <div className="px-4 py-3">
           <h1 className="text-lg font-semibold text-ink">{apartment.code}</h1>
           <p className="text-xs text-muted">{apartment.building}</p>

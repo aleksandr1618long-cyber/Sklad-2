@@ -220,6 +220,7 @@ export const en: Dict = {
     loadFailed: 'Failed to load data',
   },
   common: {
+    back: 'Back',
     notFound: 'Not found',
     noResults: 'Nothing found',
     close: 'Close',

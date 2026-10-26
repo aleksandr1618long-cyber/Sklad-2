@@ -140,7 +140,7 @@ export function AdminCleaningApprovals() {
 
       {action && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-6">
-          <div className="bg-white rounded-2xl w-full max-w-sm p-5">
+          <div className="bg-surface border border-line rounded-2xl w-full max-w-sm p-5">
             <h3 className="text-base font-semibold text-ink mb-4">
               {action.decision === 'confirm' ? t.admin.approvals.confirmTitle : t.admin.approvals.rejectTitle}
             </h3>

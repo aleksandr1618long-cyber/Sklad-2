@@ -17,7 +17,7 @@ export function QrLayout({ children }: { children: React.ReactNode }) {
           {t.qr.adminNotice}
         </div>
       )}
-      <div className="flex items-center justify-between px-4 py-2 bg-surface border-b border-line sticky top-0 z-30 max-w-lg mx-auto w-full">
+      <div className="flex items-center justify-between px-4 h-11 bg-surface border-b border-line sticky top-0 z-30 max-w-lg mx-auto w-full">
         <span className="font-semibold text-ink text-sm">{t.app.name}</span>
         <div className="flex items-center gap-3">
           <LangSwitcher compact />
