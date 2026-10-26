@@ -593,6 +593,9 @@ export const ar: Dict = {
       confirmDelete: 'تمسح الموظف؟',
       housekeeper: 'عامل نظافة',
       noStaff: 'مفيش موظفين',
+      roleHousekeeper: 'عاملة نظافة',
+      roleOther: 'أخرى',
+      archivedInstead: 'للموظف سجل سابق، لذلك تم إيقافه بدل حذفه',
     },
     users: {
       title: 'المستخدمين',
@@ -607,6 +610,7 @@ export const ar: Dict = {
       setPassword: 'غيّر كلمة السر',
       delete: 'امسح',
       confirmDelete: 'تمسح المستخدم؟',
+      confirmDeactivate: 'توقف الوصول لهذا المستخدم؟',
       copyLogin: 'انسخ اسم الدخول',
       copyPassword: 'انسخ كلمة السر',
       copied: 'اتنسخ',

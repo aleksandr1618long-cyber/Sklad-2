@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { fetchAllStaff, createStaff, updateStaff, deleteStaff } from '@/modules/admin/api'
+import { fetchAllStaff, createStaff, updateStaff, deleteStaff, archiveStaff, staffHasHistory } from '@/modules/admin/api'
 import type { Staff } from '@/lib/database.types'
 import { useI18n } from '@/i18n'
 import { toast, errorMessage } from '@/lib/toast'
@@ -51,7 +51,7 @@ export function StaffPage() {
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-ink">{s.full_name}</p>
-                  <p className="text-xs text-muted">{s.role}</p>
+                  <p className="text-xs text-muted">{s.role === 'housekeeper' ? t.admin.staff.roleHousekeeper : s.role === 'other' ? t.admin.staff.roleOther : s.role}</p>
                   {s.phone && (
                     <p className="text-xs text-muted flex items-center gap-1 mt-0.5">
                       <Phone className="w-3 h-3" />{s.phone}
@@ -93,8 +93,19 @@ export function StaffPage() {
           }}
           onDelete={editing ? async () => {
             try {
-              await deleteStaff(editing.id)
-              toast(t.admin.staff.delete, 'success')
+              // Staff with stock moves or cleanings must stay in history: deactivate instead of deleting.
+              if (await staffHasHistory(editing.id)) {
+                await archiveStaff(editing.id)
+                toast(t.admin.staff.archivedInstead, 'info')
+              } else {
+                try {
+                  await deleteStaff(editing.id)
+                  toast(t.admin.staff.delete, 'success')
+                } catch {
+                  await archiveStaff(editing.id)
+                  toast(t.admin.staff.archivedInstead, 'info')
+                }
+              }
               setEditing(null)
               load()
             } catch (e) {
@@ -139,7 +150,11 @@ function StaffEditor({
           </div>
           <div>
             <label className="block text-sm text-ink mb-1">{t.admin.staff.role}</label>
-            <input value={roleVal} onChange={(e) => setRoleVal(e.target.value)} className="w-full bg-app rounded-xl px-4 py-2.5 text-sm focus:outline-none" />
+            <select value={roleVal} onChange={(e) => setRoleVal(e.target.value)} className="w-full bg-app rounded-xl px-4 py-2.5 text-sm focus:outline-none">
+              <option value="housekeeper">{t.admin.staff.roleHousekeeper}</option>
+              <option value="other">{t.admin.staff.roleOther}</option>
+              {roleVal !== 'housekeeper' && roleVal !== 'other' && <option value={roleVal}>{roleVal}</option>}
+            </select>
           </div>
           <div>
             <label className="block text-sm text-ink mb-1">{t.admin.staff.phone}</label>

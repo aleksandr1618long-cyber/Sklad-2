@@ -4,6 +4,7 @@ import { useI18n, currentDict } from '@/i18n'
 import { toast, errorMessage } from '@/lib/toast'
 import { Plus, Trash2, Eye, EyeOff, Copy, Check, X, Lock, CreditCard as Edit3, Shield, QrCode, UserCheck, ShieldCheck } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { ErrorState } from '@/components/ErrorState'
 import type { AppRole } from '@/lib/database.types'
 
 const EDGE_ERROR_CODES = new Set([
@@ -89,12 +90,20 @@ export function UsersPage() {
   const [roleFilter, setRoleFilter] = useState<AppRole | 'all'>('all')
   const [changingRole, setChangingRole] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+  const [deactivateTarget, setDeactivateTarget] = useState<string | null>(null)
+  const [pwTarget, setPwTarget] = useState<AdminUser | null>(null)
+  const [pwValue, setPwValue] = useState('')
+  const [pwShow, setPwShow] = useState(false)
+  const [pwBusy, setPwBusy] = useState(false)
+  const [loadError, setLoadError] = useState(false)
 
   const load = async () => {
     try {
       const data = await invokeAdminUsers({ action: 'list' })
       setUsers((data.users ?? []) as AdminUser[])
+      setLoadError(false)
     } catch (e) {
+      setLoadError(true)
       toast(errorMessage(e), 'error')
     } finally {
       setLoading(false)
@@ -141,6 +150,22 @@ export function UsersPage() {
     }
   }
 
+  const submitPassword = async () => {
+    if (!pwTarget || pwBusy) return
+    if (pwValue.length < 8) { toast(t.admin.users.errWeakPassword, 'error'); return }
+    setPwBusy(true)
+    try {
+      await invokeAdminUsers({ action: 'set_password', id: pwTarget.id, password: pwValue })
+      toast(t.admin.users.passwordChanged, 'success')
+      setPwTarget(null)
+      setPwValue('')
+    } catch (e) {
+      toast(errorMessage(e), 'error')
+    } finally {
+      setPwBusy(false)
+    }
+  }
+
   const copy = (text: string, what: 'login' | 'password') => {
     navigator.clipboard.writeText(text)
     setCopied(what)
@@ -156,6 +181,7 @@ export function UsersPage() {
   const filteredUsers = roleFilter === 'all' ? users : users.filter((u) => u.role === roleFilter)
 
   if (loading) return <div className="px-4 pt-8 text-center text-muted">{t.app.loading}</div>
+  if (loadError && users.length === 0) return <ErrorState onRetry={() => { setLoading(true); load() }} />
 
   return (
     <div className="px-4 pt-6 pb-28">
@@ -205,7 +231,7 @@ export function UsersPage() {
                     <p className="text-xs text-muted">{u.login}</p>
                   </div>
                   <button
-                    onClick={() => handleSetActive(u.id, u.active)}
+                    onClick={() => (u.active ? setDeactivateTarget(u.id) : handleSetActive(u.id, false))}
                     className={`text-xs px-3 py-1.5 rounded-full font-medium shrink-0 ${u.active ? 'bg-ok-soft text-ok' : 'bg-app text-muted'}`}
                   >
                     {u.active ? t.admin.users.active : t.admin.users.inactive}
@@ -213,14 +239,7 @@ export function UsersPage() {
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => {
-                      const pw = prompt(t.admin.users.setPassword)
-                      if (pw) {
-                        invokeAdminUsers({ action: 'set_password', id: u.id, password: pw })
-                          .then(() => toast(t.admin.users.passwordChanged, 'success'))
-                          .catch((e: unknown) => toast(errorMessage(e), 'error'))
-                      }
-                    }}
+                    onClick={() => { setPwTarget(u); setPwValue(''); setPwShow(false) }}
                     className="text-xs bg-app text-ink rounded-lg px-3 py-1.5 flex items-center gap-1.5"
                   >
                     <Lock className="w-3 h-3" />
@@ -265,6 +284,53 @@ export function UsersPage() {
         />
       )}
 
+      {deactivateTarget && (
+        <ConfirmDialog
+          open={true}
+          title={t.admin.users.confirmDeactivate}
+          onConfirm={() => { const id = deactivateTarget; setDeactivateTarget(null); handleSetActive(id, true) }}
+          onCancel={() => setDeactivateTarget(null)}
+        />
+      )}
+      {pwTarget && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-6">
+          <div className="bg-surface rounded-2xl w-full max-w-sm p-5 border border-line">
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-base font-semibold text-ink">{t.admin.users.setPassword}</h3>
+              <button onClick={() => setPwTarget(null)}><X className="w-5 h-5 text-muted" /></button>
+            </div>
+            <p className="text-xs text-muted mb-3">{pwTarget.full_name} · {pwTarget.login}</p>
+            <div className="relative mb-4">
+              <input
+                type={pwShow ? 'text' : 'password'}
+                value={pwValue}
+                onChange={(e) => setPwValue(e.target.value)}
+                autoComplete="new-password"
+                placeholder={t.admin.users.password}
+                className="w-full bg-app rounded-xl pl-4 pr-11 py-2.5 text-sm focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => setPwShow((v) => !v)}
+                aria-label={pwShow ? t.admin.users.hidePassword : t.admin.users.showPassword}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted"
+              >
+                {pwShow ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setPwTarget(null)} className="flex-1 bg-app text-ink rounded-xl py-3 font-medium">{t.cleaning.cancel}</button>
+              <button
+                onClick={submitPassword}
+                disabled={pwBusy || pwValue.length < 8}
+                className="flex-1 bg-accent text-white rounded-xl py-3 font-medium disabled:opacity-40"
+              >
+                {t.admin.staff.save}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {deleteTarget && (
         <ConfirmDialog
           open={true}

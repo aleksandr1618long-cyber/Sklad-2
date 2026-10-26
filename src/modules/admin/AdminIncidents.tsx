@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { fetchAllIncidents, approveIncident, takeIncident } from '@/modules/admin/api'
-import { fetchApartmentsAdmin } from '@/modules/admin/api'
+import { fetchApartmentsAdmin, fetchItems } from '@/modules/admin/api'
 import type { Incident, Apartment, IncidentStatus, IncidentKind } from '@/lib/database.types'
 import { useI18n } from '@/i18n'
 import { formatDateTime } from '@/lib/format'
@@ -41,6 +41,7 @@ export function AdminIncidents() {
   }
   const [incidents, setIncidents] = useState<Incident[]>([])
   const [apartments, setApartments] = useState<Apartment[]>([])
+  const [itemNames, setItemNames] = useState<Map<number, string>>(new Map())
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [actionIncident, setActionIncident] = useState<{ incident: Incident; decision: 'confirm' | 'reject' } | null>(null)
@@ -55,8 +56,12 @@ export function AdminIncidents() {
   const load = (silent?: boolean) => {
     const quiet = silent === true
     if (!quiet) { setLoading(true); setLoadError(null) }
-    Promise.all([fetchAllIncidents(), fetchApartmentsAdmin()])
-      .then(([inc, apts]) => { setIncidents(inc); setApartments(apts) })
+    Promise.all([fetchAllIncidents(), fetchApartmentsAdmin(), fetchItems()])
+      .then(([inc, apts, items]) => {
+        setIncidents(inc)
+        setApartments(apts)
+        setItemNames(new Map(items.map((i) => [i.id, i.name])))
+      })
       .catch((e) => { if (!quiet) setLoadError(friendlyMessage(e)) })
       .finally(() => { if (!quiet) setLoading(false) })
   }
@@ -138,7 +143,7 @@ export function AdminIncidents() {
                         <span className="text-sm font-medium text-ink">{aptMap.get(inc.apartment_id) ?? `#${n(String(inc.apartment_id))}`}</span>
                         <span className={`text-xs px-2 py-0.5 rounded-full ${statusColors[inc.status]}`}>{statusLabels[inc.status]}</span>
                       </div>
-                      <p className="text-sm text-ink line-clamp-2">{inc.free_text ?? `#${n(String(inc.item_id))}`}</p>
+                      <p className="text-sm text-ink line-clamp-2">{inc.free_text ?? (inc.item_id != null ? (itemNames.get(inc.item_id) ?? `#${n(String(inc.item_id))}`) : '—')}</p>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-xs text-muted">{kindLabels[inc.kind]}</span>
                         <span className="text-xs text-muted">·</span>

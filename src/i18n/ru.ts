@@ -590,6 +590,9 @@ export const ru = {
       confirmDelete: 'Удалить сотрудника?',
       housekeeper: 'Хаускиперы',
       noStaff: 'Сотрудников нет',
+      roleHousekeeper: 'Хаускипер',
+      roleOther: 'Другое',
+      archivedInstead: 'У сотрудника есть история, поэтому он отключён вместо удаления',
     },
     users: {
       title: 'Пользователи',
@@ -604,6 +607,7 @@ export const ru = {
       setPassword: 'Сменить пароль',
       delete: 'Удалить',
       confirmDelete: 'Удалить пользователя?',
+      confirmDeactivate: 'Отключить доступ этому пользователю?',
       copyLogin: 'Скопировать логин',
       copyPassword: 'Скопировать пароль',
       copied: 'Скопировано',

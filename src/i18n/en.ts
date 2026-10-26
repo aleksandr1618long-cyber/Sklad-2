@@ -592,6 +592,9 @@ export const en: Dict = {
       confirmDelete: 'Delete employee?',
       housekeeper: 'Housekeepers',
       noStaff: 'No staff',
+      roleHousekeeper: 'Housekeeper',
+      roleOther: 'Other',
+      archivedInstead: 'This employee has history, so they were deactivated instead of deleted',
     },
     users: {
       title: 'Users',
@@ -606,6 +609,7 @@ export const en: Dict = {
       setPassword: 'Change password',
       delete: 'Delete',
       confirmDelete: 'Delete user?',
+      confirmDeactivate: 'Disable access for this user?',
       copyLogin: 'Copy login',
       copyPassword: 'Copy password',
       copied: 'Copied',

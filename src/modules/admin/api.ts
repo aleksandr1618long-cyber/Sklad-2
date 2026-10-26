@@ -823,9 +823,15 @@ export async function approveCleaning(
 
 const PHONE_RE = /^\+[0-9]{8,15}$/
 
+/** Removes spaces, dashes, dots and brackets; "00" prefix becomes "+". */
+export function normalizePhone(raw: string): string {
+  const cleaned = raw.replace(/[\s\-().]/g, '')
+  return cleaned.startsWith('00') ? `+${cleaned.slice(2)}` : cleaned
+}
+
 export async function createStaff(name: string, role: string, phone: string): Promise<void> {
   const trimmedName = name.trim()
-  const trimmedPhone = phone.trim()
+  const trimmedPhone = normalizePhone(phone)
   if (trimmedPhone && !PHONE_RE.test(trimmedPhone)) throw toApiError(new Error(currentDict().invalidPhoneFormat))
   const { error, status } = await supabase
     .from('staff')
@@ -834,7 +840,14 @@ export async function createStaff(name: string, role: string, phone: string): Pr
 }
 
 export async function updateStaff(id: number, patch: Partial<Pick<Staff, 'full_name' | 'role' | 'phone' | 'active'>>): Promise<void> {
-  const { error, status } = await supabase.from('staff').update(patch).eq('id', id)
+  const next = { ...patch }
+  if (typeof next.full_name === 'string') next.full_name = next.full_name.trim()
+  if (next.phone !== undefined) {
+    const phone = normalizePhone(next.phone ?? '')
+    if (phone && !PHONE_RE.test(phone)) throw toApiError(new Error(currentDict().invalidPhoneFormat))
+    next.phone = phone || null
+  }
+  const { error, status } = await supabase.from('staff').update(next).eq('id', id)
   if (error) throw toApiError(error, status)
 }
 
@@ -868,7 +881,7 @@ export async function createContact(params: {
   sort: number
 }): Promise<void> {
   const trimmedName = params.name.trim()
-  const trimmedPhone = params.phone_e164.trim()
+  const trimmedPhone = normalizePhone(params.phone_e164)
   if (!PHONE_RE.test(trimmedPhone)) throw toApiError(new Error(currentDict().invalidPhoneFormat))
   const { error, status } = await supabase.from('contacts').insert({
     group_name: params.group_name,
@@ -884,7 +897,13 @@ export async function createContact(params: {
 }
 
 export async function updateContact(id: number, patch: Partial<Omit<Contact, 'id'>>): Promise<void> {
-  const { error, status } = await supabase.from('contacts').update(patch).eq('id', id)
+  const next = { ...patch }
+  if (typeof next.phone_e164 === 'string') {
+    const phone = normalizePhone(next.phone_e164)
+    if (!PHONE_RE.test(phone)) throw toApiError(new Error(currentDict().invalidPhoneFormat))
+    next.phone_e164 = phone
+  }
+  const { error, status } = await supabase.from('contacts').update(next).eq('id', id)
   if (error) throw toApiError(error, status)
 }
 
