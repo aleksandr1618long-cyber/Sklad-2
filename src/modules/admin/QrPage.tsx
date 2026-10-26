@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { flushSync } from 'react-dom'
 import QRCode from 'qrcode'
 import { supabase } from '@/lib/supabase'
 import { useI18n } from '@/i18n'
@@ -41,14 +42,14 @@ function useAppBaseUrl(): [string, (v: string) => void] {
   const save = useCallback((v: string) => {
     const normalized = normalizeBaseUrl(v)
     setUrl(normalized)
-    if (!loaded) return
+    if (!loaded || normalized === url) return
     supabase
       .from('settings')
       .upsert({ key: SETTINGS_KEY, value: JSON.stringify(normalized) })
       .then(({ error }) => {
         if (error) toast(errorMessage(error), 'error')
       })
-  }, [loaded])
+  }, [loaded, url])
 
   return [url, save]
 }
@@ -60,7 +61,12 @@ export function QrPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Set<number>>(new Set())
-  const [qrCache, setQrCache] = useState<Map<number, string>>(new Map())
+  const [draft, setDraft] = useState(baseUrl)
+  const [qrCache, setQrCache] = useState<Map<string, string>>(new Map())
+  const base = normalizeBaseUrl(baseUrl)
+  const cacheKey = useCallback((aptId: number) => `${base}|${aptId}`, [base])
+
+  useEffect(() => { setDraft(baseUrl) }, [baseUrl])
 
   useEffect(() => {
     supabase
@@ -88,19 +94,25 @@ export function QrPage() {
 
   const visibleApts = useMemo(() => grouped.flatMap(([, list]) => list), [grouped])
 
-  const generateQr = useCallback(async (aptId: number, url: string) => {
-    const cached = qrCache.get(aptId)
-    if (cached) return cached
-    const dataUrl = await QRCode.toDataURL(`${normalizeBaseUrl(url)}/qr.html#/qr/${aptId}`, { width: 256, margin: 1 })
-    setQrCache((prev) => new Map(prev).set(aptId, dataUrl))
-    return dataUrl
-  }, [qrCache])
+  const makeQr = useCallback(
+    (aptId: number) => QRCode.toDataURL(`${base}/qr.html#/qr/${aptId}`, { width: 512, margin: 1 }),
+    [base],
+  )
 
   useEffect(() => {
-    for (const apt of visibleApts.slice(0, 30)) {
-      if (!qrCache.has(apt.id)) generateQr(apt.id, baseUrl)
-    }
-  }, [visibleApts, baseUrl, qrCache, generateQr])
+    let cancelled = false
+    const todo = visibleApts.slice(0, 30).filter((a) => !qrCache.has(cacheKey(a.id)))
+    if (todo.length === 0) return
+    Promise.all(todo.map(async (a) => [cacheKey(a.id), await makeQr(a.id)] as const)).then((entries) => {
+      if (cancelled) return
+      setQrCache((prev) => {
+        const next = new Map(prev)
+        for (const [k, v] of entries) next.set(k, v)
+        return next
+      })
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [visibleApts, qrCache, cacheKey, makeQr])
 
   const toggleSelect = (id: number) => {
     setSelected((prev) => {
@@ -116,7 +128,7 @@ export function QrPage() {
 
   const copyLink = async (aptId: number) => {
     try {
-      await navigator.clipboard.writeText(`${normalizeBaseUrl(baseUrl)}/qr.html#/qr/${aptId}`)
+      await navigator.clipboard.writeText(`${base}/qr.html#/qr/${aptId}`)
       toast(t.qr.linkCopied, 'success')
     } catch {
       toast(t.common.clipboardError, 'error')
@@ -125,8 +137,22 @@ export function QrPage() {
 
   const handlePrint = async () => {
     const targets = selected.size > 0 ? visibleApts.filter((a) => selected.has(a.id)) : visibleApts
-    for (const apt of targets) {
-      if (!qrCache.has(apt.id)) await generateQr(apt.id, baseUrl)
+    const missing = targets.filter((a) => !qrCache.has(cacheKey(a.id)))
+    if (missing.length > 0) {
+      try {
+        const entries = await Promise.all(missing.map(async (a) => [cacheKey(a.id), await makeQr(a.id)] as const))
+        // flushSync: the print area must be rendered with all codes before the print dialog opens
+        flushSync(() => {
+          setQrCache((prev) => {
+            const next = new Map(prev)
+            for (const [k, v] of entries) next.set(k, v)
+            return next
+          })
+        })
+      } catch (e) {
+        toast(errorMessage(e), 'error')
+        return
+      }
     }
     window.print()
   }
@@ -152,8 +178,10 @@ export function QrPage() {
       <div className="mb-4 no-print">
         <label className="block text-sm font-medium text-ink mb-1.5">{t.qr.appUrl}</label>
         <input
-          value={baseUrl}
-          onChange={(e) => setBaseUrl(e.target.value)}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => setBaseUrl(draft)}
+          inputMode="url"
           className="w-full bg-surface rounded-lg px-4 py-2.5 text-sm border border-line focus:border-accent focus:outline-none mb-1"
         />
         <p className="text-xs text-warn">{t.qr.appUrlHint}</p>
@@ -190,7 +218,7 @@ export function QrPage() {
                   <QrCard
                     key={apt.id}
                     apt={apt}
-                    qrDataUrl={qrCache.get(apt.id)}
+                    qrDataUrl={qrCache.get(cacheKey(apt.id))}
                     isSelected={selected.has(apt.id)}
                     onToggle={() => toggleSelect(apt.id)}
                     onCopy={() => copyLink(apt.id)}
@@ -206,7 +234,7 @@ export function QrPage() {
       <div className="hidden print:block">
         <div className="qr-print-grid">
           {(selected.size > 0 ? visibleApts.filter((a) => selected.has(a.id)) : visibleApts).map((apt) => {
-            const qr = qrCache.get(apt.id)
+            const qr = qrCache.get(cacheKey(apt.id))
             return (
               <div key={apt.id} className="qr-print-cell">
                 {qr && <img src={qr} alt={apt.code} className="qr-print-img" />}

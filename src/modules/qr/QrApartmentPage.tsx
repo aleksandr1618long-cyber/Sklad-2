@@ -26,6 +26,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { ErrorState } from '@/components/ErrorState'
 import { CleaningHistoryList } from '@/modules/history/CleaningHistoryList'
 import { QR_HISTORY_ENABLED } from '@/modules/qr/flags'
 import { useLiveRefresh } from '@/lib/realtime'
@@ -49,6 +50,7 @@ export function QrApartmentPage() {
   const profile = useAuth((s) => s.profile)
   const profileId = profile?.id
   const aptId = Number(id)
+  const invalidId = !Number.isInteger(aptId) || aptId <= 0
 
   const normTypeLabels: Record<NormType, string> = {
     asset_standing: t.apartments.normInventory,
@@ -64,6 +66,8 @@ export function QrApartmentPage() {
   const [incidents, setIncidents] = useState<Incident[]>([])
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
+  const [loadError, setLoadError] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
   const [pendingCount, setPendingCount] = useState(0)
   const [failedCount, setFailedCount] = useState(0)
@@ -100,27 +104,26 @@ export function QrApartmentPage() {
       fetchWhatsappContacts(),
       fetchApartmentIncidents(aptId),
     ])
-    const apt = results[0].status === 'fulfilled' ? results[0].value : null
-    if (!apt) { setNotFound(true); setLoading(false); return }
-    const nr = results[1].status === 'fulfilled' ? results[1].value : []
-    const it = results[2].status === 'fulfilled' ? results[2].value : []
-    const no = results[3].status === 'fulfilled' ? results[3].value : []
-    const ct = results[4].status === 'fulfilled' ? results[4].value : []
-    const inc = results[5].status === 'fulfilled' ? results[5].value : []
+    // A failed request is an error, not "not found": the caller shows a retry, a background refresh keeps old data.
+    if (results[0].status === 'rejected') throw results[0].reason
+    const apt = results[0].value
+    if (!apt) { setNotFound(true); return }
+    setNotFound(false)
     setApartment(apt)
-    setNorms(nr)
-    setItems(it)
-    setNotes(no)
-    setContacts(ct)
-    setIncidents(inc)
+    if (results[1].status === 'fulfilled') setNorms(results[1].value)
+    if (results[2].status === 'fulfilled') setItems(results[2].value)
+    if (results[3].status === 'fulfilled') setNotes(results[3].value)
+    if (results[4].status === 'fulfilled') setContacts(results[4].value)
+    if (results[5].status === 'fulfilled') setIncidents(results[5].value)
     setLastUpdated(new Date())
   }, [aptId, profileId])
 
   useEffect(() => {
-    if (!aptId) return
+    if (invalidId) { setNotFound(true); setLoading(false); return }
     setLoading(true)
+    setLoadError(false)
     loadAll()
-      .catch((e) => toast(errorMessage(e), 'error'))
+      .catch((e) => { setLoadError(true); toast(errorMessage(e), 'error') })
       .finally(() => setLoading(false))
     if (profileId) {
       const refreshOutbox = () => {
@@ -139,7 +142,7 @@ export function QrApartmentPage() {
       const unsub = subscribe(refreshOutbox)
       return unsub
     }
-  }, [aptId, loadAll, profileId])
+  }, [aptId, invalidId, loadAll, profileId, reloadKey])
 
   useLiveRefresh(
     ['apartments', 'apartment_notes', 'contacts', 'incidents', 'cleaning_events', 'items', 'norm_rules'],
@@ -230,12 +233,12 @@ export function QrApartmentPage() {
     }
   }
 
-  const handleAddNote = async (photoPath: string | null) => {
-    if (!noteText.trim() && !photoPath) return
+  const handleAddNote = async (photoPath: string | null): Promise<boolean> => {
+    if (!noteText.trim() && !photoPath) return false
     setSendingNote(true)
     try {
       const body = noteText.trim()
-      await addNote(aptId, body || ' ', photoPath)
+      await addNote(aptId, body, photoPath)
       setNoteText('')
       if (body && apartment && notifyContacts.length > 0) {
         setSentNote(commentMessage({
@@ -247,8 +250,10 @@ export function QrApartmentPage() {
       }
       const no = await fetchNotes(aptId)
       setNotes(no)
+      return true
     } catch (e) {
       toast(errorMessage(e), 'error')
+      return false
     } finally {
       setSendingNote(false)
     }
@@ -259,8 +264,7 @@ export function QrApartmentPage() {
     setUploadingFile(true)
     try {
       const path = await uploadNoteFile(profile.id, aptId, file, true)
-      await handleAddNote(path)
-      toast(t.qr.fileUploaded, 'success')
+      if (await handleAddNote(path)) toast(t.qr.fileUploaded, 'success')
     } catch (e) {
       toast(errorMessage(e), 'error')
     } finally {
@@ -281,8 +285,7 @@ export function QrApartmentPage() {
     setUploadingFile(true)
     try {
       const path = await uploadNoteFile(profile.id, aptId, file, false)
-      await handleAddNote(path)
-      toast(t.qr.fileUploaded, 'success')
+      if (await handleAddNote(path)) toast(t.qr.fileUploaded, 'success')
     } catch (e) {
       toast(errorMessage(e), 'error')
     } finally {
@@ -291,6 +294,7 @@ export function QrApartmentPage() {
   }
 
   if (loading) return <div className="px-4 pt-8 text-center text-muted">{t.app.loading}</div>
+  if (loadError && !apartment) return <ErrorState onRetry={() => setReloadKey((k) => k + 1)} />
   if (notFound) return (
     <div className="px-4 pt-8 text-center text-muted">
       <p>{t.qr.notFound}</p>
