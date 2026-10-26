@@ -271,6 +271,9 @@ export const ar: Dict = {
     close: 'إغلاق',
   },
   qr: {
+    logoutUnsentTitle: 'فيه بيانات لسه ما اتبعتتش',
+    logoutUnsentMessage: 'بعض السجلات لسه ما وصلتش للسيرفر. لو خرجت دلوقتي هتتبعت بس بعد ما تدخل تاني بنفس الحساب.',
+    logoutAnyway: 'اخرج برضه',
     title: 'QR الشقق',
     appUrl: 'عنوان التطبيق',
     appUrlHint: 'استخدم الدومين النهائي، مش رابط المعاينة.',

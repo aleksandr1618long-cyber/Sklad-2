@@ -270,6 +270,9 @@ export const en: Dict = {
     close: 'Close',
   },
   qr: {
+    logoutUnsentTitle: 'Some data is not sent yet',
+    logoutUnsentMessage: 'Some entries have not reached the server. If you sign out now, they will be sent only after you sign in again with this account.',
+    logoutAnyway: 'Sign out anyway',
     title: 'Apartment QR',
     appUrl: 'App URL',
     appUrlHint: 'Use the final published domain, not a preview URL.',
