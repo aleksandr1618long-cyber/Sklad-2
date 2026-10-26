@@ -1,6 +1,8 @@
 import { test, expect, type Page } from '@playwright/test'
 import { createClient } from '@supabase/supabase-js'
 import { randomUUID } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 const ALLOWED = process.env.E2E_ALLOW === '1'
 const SUPA_URL = process.env.E2E_SUPABASE_URL!
@@ -9,7 +11,13 @@ const ADMIN_LOGIN = process.env.E2E_ADMIN_LOGIN!
 const ADMIN_PW = process.env.E2E_ADMIN_PASSWORD!
 const QR_APARTMENT_ID = process.env.E2E_QR_APARTMENT_ID!
 
+// The history page is switched off by QR_HISTORY_ENABLED; without the page these tests cannot pass.
+const HISTORY_ON = /QR_HISTORY_ENABLED\s*=\s*true/.test(
+  readFileSync(resolve(process.cwd(), 'src/modules/qr/flags.ts'), 'utf8'),
+)
+
 test.skip(!ALLOWED, 'E2E_ALLOW=1 required')
+test.skip(!HISTORY_ON, 'QR_HISTORY_ENABLED is false')
 
 async function login(page: Page, login: string, password: string) {
   await page.goto('/')
