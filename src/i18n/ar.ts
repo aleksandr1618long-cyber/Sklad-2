@@ -298,7 +298,7 @@ export const ar: Dict = {
     noComments: 'لسه مفيش تعليقات',
     photo: 'صورة',
     video: 'فيديو',
-    videoTooBig: 'الفيديو أكبر من ٤٠ ميجا',
+    videoTooBig: 'الفيديو أكبر من ٥٠ ميجا',
     videoTooLong: 'الفيديو أطول من ٦٠ ثانية',
     fileUploaded: 'الملف اتحمّل',
     fileError: 'غلط في تحميل الملف',

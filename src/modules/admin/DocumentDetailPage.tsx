@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { ErrorState } from '@/components/ErrorState'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   fetchDocumentMoves,
@@ -43,6 +44,7 @@ export function DocumentDetailPage() {
   const [moves, setMoves] = useState<DocMoveRow[]>([])
   const [attachments, setAttachments] = useState<AttachmentRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<AttachmentRow | null>(null)
   const [voidOpen, setVoidOpen] = useState(false)
@@ -57,6 +59,7 @@ export function DocumentDetailPage() {
     const isFirstLoad = loadedIdRef.current !== id
     if (isFirstLoad && !quiet) {
       setLoading(true)
+      setLoadError(false)
     }
     Promise.all([
       supabase.from('documents').select('id,doc_type,number,doc_date,supplier_id,status,note,total_cost,created_at').eq('id', id).single(),
@@ -77,7 +80,7 @@ export function DocumentDetailPage() {
         setAttachments(atts)
         loadedIdRef.current = id
       })
-      .catch((e) => { if (!quiet) toast(errorMessage(e), 'error') })
+      .catch((e) => { if (!quiet) { setLoadError(true); toast(errorMessage(e), 'error') } })
       .finally(() => { if (isFirstLoad && !quiet) setLoading(false) })
   }, [id])
 
@@ -154,6 +157,8 @@ export function DocumentDetailPage() {
   if (loading) {
     return <div className="px-4 pt-8 text-center text-muted">{t.app.loading}</div>
   }
+
+  if (!doc && loadError) return <ErrorState onRetry={() => loadAll()} />
 
   if (!doc) {
     return (

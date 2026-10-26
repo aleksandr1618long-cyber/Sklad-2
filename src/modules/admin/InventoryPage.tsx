@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { ErrorState } from '@/components/ErrorState'
 import { useI18n } from '@/i18n'
 import { toast, errorMessage } from '@/lib/toast'
 import { useLiveRefresh } from '@/lib/realtime'
@@ -35,6 +36,7 @@ export function InventoryPage() {
   const { t } = useI18n()
   const [rows, setRows] = useState<InventoryRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [filter, setFilter] = useState<Filter>('all')
   const [openId, setOpenId] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
@@ -46,10 +48,10 @@ export function InventoryPage() {
   }
 
   const load = useCallback((silent?: boolean) => {
-    if (!silent) setLoading(true)
+    if (!silent) { setLoading(true); setLoadError(false) }
     fetchInventories()
       .then(setRows)
-      .catch((e) => { if (!silent) toast(errorMessage(e), 'error') })
+      .catch((e) => { if (!silent) { setLoadError(true); toast(errorMessage(e), 'error') } })
       .finally(() => { if (!silent) setLoading(false) })
   }, [])
 
@@ -94,6 +96,8 @@ export function InventoryPage() {
 
       {loading ? (
         <div className="text-center text-muted text-sm pt-8">{t.app.loading}</div>
+      ) : loadError && rows.length === 0 ? (
+        <ErrorState onRetry={() => load()} />
       ) : shown.length === 0 ? (
         <p className="text-sm text-muted text-center mt-8">{t.admin.inventory.empty}</p>
       ) : (

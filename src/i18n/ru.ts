@@ -295,7 +295,7 @@ export const ru = {
     noComments: 'Пока нет комментариев',
     photo: 'Фото',
     video: 'Видео',
-    videoTooBig: 'Видео больше 40 МБ',
+    videoTooBig: 'Видео больше 50 МБ',
     videoTooLong: 'Видео длиннее 60 секунд',
     fileUploaded: 'Файл загружен',
     fileError: 'Ошибка загрузки файла',

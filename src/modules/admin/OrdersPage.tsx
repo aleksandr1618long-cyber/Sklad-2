@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { ErrorState } from '@/components/ErrorState'
 import { useI18n } from '@/i18n'
 import { toast, errorMessage } from '@/lib/toast'
 import { useLiveRefresh } from '@/lib/realtime'
@@ -33,6 +34,7 @@ export function OrdersPage() {
   const { t, n } = useI18n()
   const [orders, setOrders] = useState<PurchaseOrderRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [filter, setFilter] = useState<Filter>('all')
   const [openId, setOpenId] = useState<string | null>(null)
@@ -45,10 +47,10 @@ export function OrdersPage() {
   }
 
   const load = useCallback((silent?: boolean) => {
-    if (!silent) setLoading(true)
+    if (!silent) { setLoading(true); setLoadError(false) }
     fetchPurchaseOrders()
       .then(setOrders)
-      .catch((e) => { if (!silent) toast(errorMessage(e), 'error') })
+      .catch((e) => { if (!silent) { setLoadError(true); toast(errorMessage(e), 'error') } })
       .finally(() => { if (!silent) setLoading(false) })
   }, [])
 
@@ -110,6 +112,8 @@ export function OrdersPage() {
 
       {loading ? (
         <div className="text-center text-muted text-sm pt-8">{t.app.loading}</div>
+      ) : loadError && orders.length === 0 ? (
+        <ErrorState onRetry={() => load()} />
       ) : shown.length === 0 ? (
         <p className="text-sm text-muted text-center mt-8">{t.admin.orders.empty}</p>
       ) : (

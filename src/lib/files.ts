@@ -43,7 +43,7 @@ export function validateReceipt(file: File): string | null {
 }
 
 const VIDEO_MIMES = new Set(['video/mp4', 'video/quicktime', 'video/webm'])
-const VIDEO_MAX = 50 * 1024 * 1024
+export const VIDEO_MAX = 50 * 1024 * 1024
 
 export function validateVideo(file: File): string | null {
   const mime = resolveMime(file)

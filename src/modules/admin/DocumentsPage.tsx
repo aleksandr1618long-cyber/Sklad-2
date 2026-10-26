@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { ErrorState } from '@/components/ErrorState'
 import { useNavigate } from 'react-router-dom'
 import { fetchDocuments } from '@/modules/admin/api'
 import type { DocumentWithSupplier } from '@/lib/database.types'
@@ -15,6 +16,7 @@ export function DocumentsPage() {
   const navigate = useNavigate()
   const [docs, setDocs] = useState<DocumentWithSupplier[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(true)
   const [filter, setFilter] = useState<string>('all')
@@ -22,26 +24,27 @@ export function DocumentsPage() {
 
   useEffect(() => {
     setLoading(true)
+    setLoadError(false)
     fetchDocuments(filter, 0, PAGE_SIZE)
       .then((data) => {
         setDocs(data)
         setHasMore(data.length === PAGE_SIZE)
         pageRef.current = 0
       })
-      .catch((e) => toast(errorMessage(e), 'error'))
+      .catch((e) => { setLoadError(true); toast(errorMessage(e), 'error') })
       .finally(() => setLoading(false))
   }, [filter])
 
   const loadFirstPage = useCallback((silent?: boolean) => {
     const quiet = silent === true
     if (pageRef.current > 0) return
-    if (!quiet) setLoading(true)
+    if (!quiet) { setLoading(true); setLoadError(false) }
     fetchDocuments(filter, 0, PAGE_SIZE)
       .then((data) => {
         setDocs(data)
         setHasMore(data.length === PAGE_SIZE)
       })
-      .catch((e) => { if (!quiet) toast(errorMessage(e), 'error') })
+      .catch((e) => { if (!quiet) { setLoadError(true); toast(errorMessage(e), 'error') } })
       .finally(() => { if (!quiet) setLoading(false) })
   }, [filter])
 
@@ -103,6 +106,8 @@ export function DocumentsPage() {
 
       {loading ? (
         <div className="text-center text-muted text-sm pt-8">{t.app.loading}</div>
+      ) : loadError && docs.length === 0 ? (
+        <ErrorState onRetry={() => loadFirstPage()} />
       ) : docs.length === 0 ? (
         <p className="text-sm text-muted text-center mt-8">{t.admin.documents.noDocs}</p>
       ) : (

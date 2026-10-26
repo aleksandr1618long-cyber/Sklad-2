@@ -6,6 +6,7 @@ import { fetchReportStockMoves, fetchReportWarehouseStock } from '@/modules/admi
 import type { ReportStockMoveRow, WarehouseStockRow } from '@/lib/database.types'
 import { cairoLocalToISO, formatDate, formatDateTime, formatNum } from '@/lib/format'
 import { toast, errorMessage } from '@/lib/toast'
+import { ErrorState } from '@/components/ErrorState'
 import { useLiveRefresh } from '@/lib/realtime'
 
 type Period = 'today' | '7' | '30' | 'custom'
@@ -189,7 +190,7 @@ export function ReportsPage() {
         ))}
       </div>
 
-      {loading ? <p className="text-sm text-muted text-center py-8">{t.app.loading}</p> : error ? <p className="text-sm text-bad text-center py-8">{error}</p> : (
+      {loading ? <p className="text-sm text-muted text-center py-8">{t.app.loading}</p> : error ? <ErrorState message={error} onRetry={() => setReloadToken((k) => k + 1)} /> : (
         <>
           {tab === 'expense' && <ReportCard title={t.admin.reports.expense} onExport={exportExpense} exportLabel={t.admin.reports.export}>
             <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr><Th>{t.admin.reports.apartment}</Th><Th>{t.admin.reports.item}</Th><Th>{t.admin.reports.category}</Th><Th>{t.admin.reports.qtyPacks}</Th><Th>{t.admin.reports.cost}</Th></tr></thead><tbody>{expenseRows.map((row) => <tr key={`${row.apartment}-${row.item}`} className="border-t border-line"><Td>{row.apartment}</Td><Td>{row.item}</Td><Td>{row.category}</Td><Td>{n(formatNum(row.qtyPacks, { maximumFractionDigits: 2 }))}</Td><Td>{row.cost == null ? '—' : `${formatCurrency(row.cost, currency)}${row.partial ? ' *' : ''}`}</Td></tr>)}</tbody></table>{expenseRows.length === 0 && <Empty label={t.common.noResults} />}{expenseRows.some((row) => row.partial && row.cost != null) && <p className="text-xs text-muted mt-2">{t.admin.reports.costPartialNote}</p>}</div>

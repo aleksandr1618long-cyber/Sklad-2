@@ -103,6 +103,7 @@ export function QrScanner({ onResult, onClose, onManual }: Props) {
         return jsQR(image.data, w, h, { inversionAttempts: 'dontInvert' })?.data ?? null
       }
 
+      if (stopped) return
       scanTimer = setInterval(async () => {
         if (busy || stopped) return
         busy = true

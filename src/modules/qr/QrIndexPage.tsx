@@ -46,7 +46,10 @@ export function QrIndexPage() {
       list.push(a)
       map.set(a.building, list)
     }
-    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]))
+    const byCode = (a: SvApartment, b: SvApartment) => a.code.localeCompare(b.code, undefined, { numeric: true })
+    return Array.from(map.entries())
+      .sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true }))
+      .map(([building, list]) => [building, [...list].sort(byCode)] as [string, SvApartment[]])
   }, [apartments, search])
 
   if (loading) return <div className="px-4 pt-8 text-center text-muted">{t.app.loading}</div>

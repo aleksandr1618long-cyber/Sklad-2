@@ -297,7 +297,7 @@ export const en: Dict = {
     noComments: 'No comments yet',
     photo: 'Photo',
     video: 'Video',
-    videoTooBig: 'Video exceeds 40 MB',
+    videoTooBig: 'Video exceeds 50 MB',
     videoTooLong: 'Video exceeds 60 seconds',
     fileUploaded: 'File uploaded',
     fileError: 'File upload error',

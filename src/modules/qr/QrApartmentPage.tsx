@@ -18,6 +18,7 @@ import { useI18n } from '@/i18n'
 import { formatDateTime, isToday, formatQty } from '@/lib/format'
 import { toast, errorMessage } from '@/lib/toast'
 import { WhatsappNotify } from '@/components/WhatsappNotify'
+import { VIDEO_MAX } from '@/lib/files'
 import { useNotifyContacts, commentMessage } from '@/lib/whatsappNotify'
 import { getOutboxSummary, getOutboxEntries, subscribe, flushOutbox, retryMediaEntry, discardMediaEntry, retryFailedEntry, deleteFailedEntry, type OutboxEntry } from '@/lib/outbox'
 import {
@@ -274,7 +275,7 @@ export function QrApartmentPage() {
 
   const handleVideo = async (file: File) => {
     if (!profile) return
-    if (file.size > 40 * 1024 * 1024) { toast(t.qr.videoTooBig, 'error'); return }
+    if (file.size > VIDEO_MAX) { toast(t.qr.videoTooBig, 'error'); return }
     try {
       const duration = await getVideoDuration(file)
       if (duration > 60) { toast(t.qr.videoTooLong, 'error'); return }
@@ -800,17 +801,40 @@ function WhatsappSection({
     })
   }
 
-  const buildMessage = async (contact: Contact) => {
+  // Links are signed when a file is selected, not on tap: window.open after an await is blocked by iOS Safari.
+  const [signed, setSigned] = useState<Map<string, string>>(new Map())
+  const signing = Array.from(selectedFiles).some((p) => !signed.has(p))
+
+  useEffect(() => {
+    const missing = Array.from(selectedFiles).filter((p) => !signed.has(p))
+    if (missing.length === 0) return
+    let cancelled = false
+    createSignedUrls(missing)
+      .then((urlMap) => {
+        if (cancelled) return
+        setSigned((prev) => {
+          const next = new Map(prev)
+          for (const p of missing) next.set(p, urlMap.get(p) ?? '')
+          return next
+        })
+      })
+      .catch(() => {
+        if (cancelled) return
+        setSigned((prev) => {
+          const next = new Map(prev)
+          for (const p of missing) next.set(p, '')
+          return next
+        })
+      })
+    return () => { cancelled = true }
+  }, [selectedFiles, signed])
+
+  const buildMessage = (contact: Contact) => {
     const parts: string[] = [apartment.code, apartment.building]
     if (text.trim()) parts.push(text.trim())
-    if (selectedFiles.size > 0) {
-      try {
-        const urlMap = await createSignedUrls(Array.from(selectedFiles))
-        for (const path of selectedFiles) {
-          const url = urlMap.get(path)
-          if (url) parts.push(url)
-        }
-      } catch { /* skip broken */ }
+    for (const path of selectedFiles) {
+      const url = signed.get(path)
+      if (url) parts.push(url)
     }
     const digits = contact.phone_e164.replace(/[^0-9]/g, '')
     const encoded = encodeURIComponent(parts.join('\n'))
@@ -874,7 +898,8 @@ function WhatsappSection({
                 <button
                   key={contact.id}
                   onClick={() => buildMessage(contact)}
-                  className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-app transition-colors"
+                  disabled={signing}
+                  className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-app transition-colors disabled:opacity-50"
                 >
                   <MessageCircle className="w-5 h-5 text-accent shrink-0" />
                   <div className="flex-1 min-w-0">

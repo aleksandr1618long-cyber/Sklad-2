@@ -70,14 +70,13 @@ export async function uploadNoteFile(
   const path = `${userId}/notes/${apartmentId}/${ts}-${safeName}`
 
   if (isImage) {
-    if (isHeicFile(file)) {
-      try {
-        await compressImage(file, 1280, 0.8)
-      } catch {
-        throw toApiError(new Error(currentDict().heicNotSupported))
-      }
+    let compressed: Awaited<ReturnType<typeof compressImage>>
+    try {
+      compressed = await compressImage(file, 1280, 0.8)
+    } catch (e) {
+      if (isHeicFile(file)) throw toApiError(new Error(currentDict().heicNotSupported))
+      throw e
     }
-    const compressed = await compressImage(file, 1280, 0.8)
     const { error } = await supabase.storage
       .from('incident-photos')
       .upload(path, compressed, { contentType: 'image/jpeg' })
