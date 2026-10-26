@@ -6,15 +6,16 @@ import {
   fetchNormRules,
   fetchTemplateNorms,
   fetchAllStaff,
+  fetchBuildings,
   issueMissing,
   reverseCleaning,
   recalculateCleaning,
 } from '@/modules/admin/api'
-import type { Apartment, ApartmentGapRow, NormRuleRow, Staff, IssueMissingResult } from '@/lib/database.types'
+import type { Apartment, ApartmentGapRow, NormRuleRow, Staff, IssueMissingResult, Building } from '@/lib/database.types'
 import { useI18n } from '@/i18n'
 import { cairoLocalToISO } from '@/lib/format'
 import { toast, errorMessage } from '@/lib/toast'
-import { ClipboardList, History, Gift, X, Loader as Loader2, Wrench, Boxes } from 'lucide-react'
+import { ClipboardList, History, Gift, X, Loader as Loader2, Wrench, Boxes, CreditCard as Edit3 } from 'lucide-react'
 import { ErrorState } from '@/components/ErrorState'
 import { friendlyMessage } from '@/lib/errors'
 import { CleaningHistoryList } from '@/modules/history/CleaningHistoryList'
@@ -22,6 +23,8 @@ import { IncidentHistoryList } from '@/modules/history/IncidentHistoryList'
 import { NormsTab } from './NormsTab'
 import { RoomsPanel } from '@/modules/rooms/RoomsPanel'
 import { useLiveRefresh } from '@/lib/realtime'
+import { OwnerBadge } from '@/components/OwnerBadge'
+import { EditApartmentModal } from './AdminApartmentList'
 
 type Tab = 'norms' | 'rooms' | 'cleaning' | 'incidents'
 
@@ -61,6 +64,8 @@ export function AdminApartmentDetail() {
   const [recalcDate, setRecalcDate] = useState('')
   const [recalcStaffIds, setRecalcStaffIds] = useState<number[]>([])
   const [historyRefresh, setHistoryRefresh] = useState(0)
+  const [editingApt, setEditingApt] = useState<Apartment | null>(null)
+  const [buildings, setBuildings] = useState<Building[]>([])
 
   const loadedAptIdRef = useRef<number | null>(null)
 
@@ -77,13 +82,15 @@ export function AdminApartmentDetail() {
       fetchApartmentGaps(),
       fetchNormRules(aptId),
       fetchAllStaff(),
+      fetchBuildings(),
     ])
-      .then(([apts, ga, norms, st]) => {
+      .then(([apts, ga, norms, st, bld]) => {
         const apt = apts.find((a) => a.id === aptId) ?? null
         setApartment(apt)
         setAllApartments(apts)
         setGaps(ga.filter((g) => g.apartment_id === aptId))
         setOverrideNorms(norms)
+        setBuildings(bld)
         if (apt) {
           fetchTemplateNorms(apt.type).then(setTemplateNorms).catch((e) => console.error(friendlyMessage(e)))
         }
@@ -181,7 +188,17 @@ export function AdminApartmentDetail() {
                 {t.common.close}
               </button>
             </div>
-            <h2 className="text-xl font-semibold text-ink m-0">{apartment.code}</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-semibold text-ink m-0">{apartment.code}</h2>
+              {apartment.is_owner && <OwnerBadge />}
+              <button
+                onClick={() => setEditingApt(apartment)}
+                className="ms-auto p-1.5 rounded-lg border border-line text-muted hover:text-accent flex items-center gap-1 text-xs"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                {t.admin.apartments.edit}
+              </button>
+            </div>
             <p className="text-muted text-sm">{apartment.type}</p>
 
             {/* Completeness */}
@@ -378,6 +395,20 @@ export function AdminApartmentDetail() {
             </button>
           </div>
         </Modal>
+      )}
+
+      {editingApt && (
+        <EditApartmentModal
+          apartment={editingApt}
+          buildings={buildings}
+          typeLabels={{
+            studio: t.apartments.typeStudio,
+            '1br': t.apartments.type1br,
+            '2br': t.apartments.type2br,
+          }}
+          onClose={() => setEditingApt(null)}
+          onSaved={() => { setEditingApt(null); loadAll({ silent: true }) }}
+        />
       )}
     </>
   )

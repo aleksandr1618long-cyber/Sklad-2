@@ -32,6 +32,7 @@ export function IncidentDetailSheet({ incident, canDelete, onClose, onDeleted }:
   const kindLabels: Record<IncidentKind, string> = {
     breakdown: t.incidents.kindBreakdown,
     broken: t.incidents.kindBroken,
+    damaged: t.incidents.kindDamaged,
     lost: t.incidents.kindLost,
     other: t.incidents.kindOther,
   }

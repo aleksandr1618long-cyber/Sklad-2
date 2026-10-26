@@ -96,6 +96,7 @@ export function IncidentHistoryList({ apartmentId, canDelete, refreshKey }: Prop
   const kindDisplay: Record<IncidentKind, string> = {
     breakdown: t.incidents.kindBreakdown,
     broken: t.incidents.kindBroken,
+    damaged: t.incidents.kindDamaged,
     lost: t.incidents.kindLost,
     other: t.incidents.kindOther,
   }

@@ -40,6 +40,7 @@ export function IncidentForm({ backTo }: { backTo?: string }) {
   const kinds: { value: IncidentKind; label: string }[] = [
     { value: 'breakdown', label: t.incidents.kindBreakdown },
     { value: 'broken', label: t.incidents.kindBroken },
+    { value: 'damaged', label: t.incidents.kindDamaged },
     { value: 'lost', label: t.incidents.kindLost },
     { value: 'other', label: t.incidents.kindOther },
   ]

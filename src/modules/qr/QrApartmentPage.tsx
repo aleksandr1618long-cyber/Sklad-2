@@ -32,6 +32,7 @@ import { CleaningHistoryList } from '@/modules/history/CleaningHistoryList'
 import { QR_HISTORY_ENABLED } from '@/modules/qr/flags'
 import { useLiveRefresh } from '@/lib/realtime'
 import { RoomsPanel } from '@/modules/rooms/RoomsPanel'
+import { OwnerBadge } from '@/components/OwnerBadge'
 
 const normTypeOrder: NormType[] = ['asset_standing', 'turnover_replenish', 'cleaning_consumption']
 
@@ -326,6 +327,7 @@ export function QrApartmentPage() {
       <div className="bg-surface border-b border-line sticky top-11 z-30">
         <div className="px-4 py-3">
           <h1 className="text-lg font-semibold text-ink">{apartment.code}</h1>
+          {apartment.is_owner && <OwnerBadge />}
           <p className="text-xs text-muted">{apartment.building}</p>
           {apartment.last_cleaned_at && isToday(apartment.last_cleaned_at) && (
             <span className="inline-flex items-center gap-1 mt-1.5 text-xs text-ok bg-ok-soft rounded-full px-2 py-0.5">
@@ -963,6 +965,7 @@ function kindLabel(kind: IncidentKind, t: ReturnType<typeof useI18n>['t']): stri
   switch (kind) {
     case 'breakdown': return t.incidents.kindBreakdown
     case 'broken': return t.incidents.kindBroken
+    case 'damaged': return t.incidents.kindDamaged
     case 'lost': return t.incidents.kindLost
     default: return t.incidents.kindOther
   }

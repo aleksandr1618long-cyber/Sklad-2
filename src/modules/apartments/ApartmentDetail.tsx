@@ -13,6 +13,7 @@ import { CleaningHistoryList } from '@/modules/history/CleaningHistoryList'
 import { IncidentHistoryList } from '@/modules/history/IncidentHistoryList'
 import { useLiveRefresh } from '@/lib/realtime'
 import { RoomsPanel } from '@/modules/rooms/RoomsPanel'
+import { OwnerBadge } from '@/components/OwnerBadge'
 
 type Tab = 'norms' | 'rooms' | 'comments' | 'cleaning' | 'incidents'
 
@@ -94,6 +95,7 @@ export function ApartmentDetail() {
           </button>
           <div className="flex-1">
             <h1 className="text-lg font-semibold text-ink">{apartment.code}</h1>
+            {apartment.is_owner && <OwnerBadge />}
             <p className="text-xs text-muted">{apartment.building}</p>
           </div>
           <span className="text-xs text-muted">

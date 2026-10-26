@@ -11,6 +11,7 @@ import { ErrorState } from '@/components/ErrorState'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { friendlyMessage } from '@/lib/errors'
 import { useLiveRefresh } from '@/lib/realtime'
+import { OwnerBadge } from '@/components/OwnerBadge'
 
 const typeOrder: AptType[] = ['studio', '1br', '2br']
 
@@ -216,6 +217,7 @@ export function ApartmentList() {
                     >
                       <div className="flex items-center gap-3">
                         <span className="font-medium text-ink">{apt.code}</span>
+                        {apt.is_owner && <OwnerBadge />}
                         <span className="text-xs text-muted">{apt.building}</span>
                         {cleaned && (
                           <span className="flex items-center gap-1 text-xs text-ok bg-ok-soft px-2 py-0.5 rounded-full">

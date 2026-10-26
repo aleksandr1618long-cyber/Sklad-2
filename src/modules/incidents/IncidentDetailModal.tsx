@@ -10,6 +10,7 @@ import { friendlyMessage } from '@/lib/errors'
 const kindIcons: Record<IncidentKind, React.ComponentType<{ className?: string }>> = {
   breakdown: Wrench,
   broken: AlertCircle,
+  damaged: AlertCircle,
   lost: Package,
   other: AlertCircle,
 }
@@ -25,6 +26,7 @@ function kindLabel(kind: IncidentKind, t: ReturnType<typeof useI18n>['t']): stri
   switch (kind) {
     case 'breakdown': return t.incidents.kindBreakdown
     case 'broken': return t.incidents.kindBroken
+    case 'damaged': return t.incidents.kindDamaged
     case 'lost': return t.incidents.kindLost
     default: return t.incidents.kindOther
   }

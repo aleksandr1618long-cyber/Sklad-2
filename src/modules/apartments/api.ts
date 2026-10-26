@@ -7,7 +7,7 @@ export async function fetchApartments(userId: string): Promise<SvApartment[]> {
   const { data } = await swrFetch(cacheKey(userId, 'apartments'), async () => {
     const { data, error, status } = await supabase
       .from('sv_apartments')
-      .select('id,code,building,type,status,last_cleaned_at')
+      .select('id,code,building,type,status,is_owner,last_cleaned_at')
       .order('code')
     if (error) throw toApiError(error, status)
     return data ?? []
@@ -18,7 +18,7 @@ export async function fetchApartments(userId: string): Promise<SvApartment[]> {
 export async function fetchApartmentById(id: number): Promise<SvApartment | null> {
   const { data, error, status } = await supabase
     .from('sv_apartments')
-    .select('id,code,building,type,status,last_cleaned_at')
+    .select('id,code,building,type,status,is_owner,last_cleaned_at')
     .eq('id', id)
     .maybeSingle()
   if (error) throw toApiError(error, status)

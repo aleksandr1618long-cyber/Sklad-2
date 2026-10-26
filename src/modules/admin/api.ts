@@ -203,7 +203,7 @@ export async function fetchStockMoves(itemId: number, offset = 0): Promise<Stock
 export async function fetchApartmentsAdmin(): Promise<Apartment[]> {
   const { data, error, status } = await supabase
     .from('apartments')
-    .select('id,building_id,number,code,type,status,created_at')
+    .select('id,building_id,number,code,type,status,is_owner,created_at')
     .order('code')
   if (error) throw toApiError(error, status)
   return data ?? []
@@ -233,6 +233,7 @@ export async function createApartment(input: {
   buildingName: string
   number: string
   type: AptType
+  isOwner?: boolean
 }): Promise<Apartment> {
   const { data, error, status } = await supabase
     .from('apartments')
@@ -241,8 +242,33 @@ export async function createApartment(input: {
       number: input.number,
       code: `${input.buildingName}/${input.number}`,
       type: input.type,
+      is_owner: input.isOwner ?? false,
     })
-    .select('id,building_id,number,code,type,status,created_at')
+    .select('id,building_id,number,code,type,status,is_owner,created_at')
+    .single()
+  if (error) throw toApiError(error, status)
+  return data as Apartment
+}
+
+export async function updateApartment(input: {
+  id: number
+  buildingId: number
+  buildingName: string
+  number: string
+  type: AptType
+  isOwner?: boolean
+}): Promise<Apartment> {
+  const { data, error, status } = await supabase
+    .from('apartments')
+    .update({
+      building_id: input.buildingId,
+      number: input.number,
+      code: `${input.buildingName}/${input.number}`,
+      type: input.type,
+      is_owner: input.isOwner ?? false,
+    })
+    .eq('id', input.id)
+    .select('id,building_id,number,code,type,status,is_owner,created_at')
     .single()
   if (error) throw toApiError(error, status)
   return data as Apartment
@@ -951,19 +977,19 @@ export async function deleteNormRule(id: number): Promise<void> {
 export async function fetchCategories(): Promise<Category[]> {
   const { data, error, status } = await supabase
     .from('categories')
-    .select('id,name,kind,sort')
+    .select('id,name,kind,sort,tenant_coef')
     .order('sort')
     .order('name')
   if (error) throw toApiError(error, status)
   return data ?? []
 }
 
-export async function createCategory(name: string, kind: ItemKind, sort: number): Promise<void> {
-  const { error, status } = await supabase.from('categories').insert({ name, kind, sort })
+export async function createCategory(name: string, kind: ItemKind, sort: number, tenantCoef: number | null = null): Promise<void> {
+  const { error, status } = await supabase.from('categories').insert({ name, kind, sort, tenant_coef: tenantCoef })
   if (error) throw toApiError(error, status)
 }
 
-export async function updateCategory(id: number, patch: Partial<Pick<Category, 'name' | 'kind' | 'sort'>>): Promise<void> {
+export async function updateCategory(id: number, patch: Partial<Pick<Category, 'name' | 'kind' | 'sort' | 'tenant_coef'>>): Promise<void> {
   const { error, status } = await supabase.from('categories').update(patch).eq('id', id)
   if (error) throw toApiError(error, status)
 }
@@ -985,7 +1011,7 @@ export async function fetchItems(): Promise<Item[]> {
   return fetchAllPages<Item>((from, to) =>
     supabase
       .from('items')
-      .select('id,category_id,name,base_unit,pack_size,pack_label,min_stock,target_stock,note,default_cost,track_on_hand,qr_code,photo_path,active,sort,supplier_id')
+      .select('id,category_id,name,base_unit,pack_size,pack_label,min_stock,target_stock,note,default_cost,track_on_hand,qr_code,photo_path,active,sort,supplier_id,tenant_coef')
       .order('sort')
       .order('name')
       .order('id')
@@ -1006,6 +1032,7 @@ export async function createItem(params: {
   sort?: number
   track_on_hand: boolean
   supplier_id?: number | null
+  tenant_coef?: number | null
 }): Promise<number> {
   const { data, error, status } = await supabase
     .from('items')
@@ -1016,7 +1043,7 @@ export async function createItem(params: {
   return (data as { id: number }).id
 }
 
-export async function updateItem(id: number, patch: Partial<Pick<Item, 'name' | 'category_id' | 'base_unit' | 'pack_size' | 'pack_label' | 'min_stock' | 'target_stock' | 'note' | 'default_cost' | 'sort' | 'track_on_hand' | 'active' | 'supplier_id'>>): Promise<void> {
+export async function updateItem(id: number, patch: Partial<Pick<Item, 'name' | 'category_id' | 'base_unit' | 'pack_size' | 'pack_label' | 'min_stock' | 'target_stock' | 'note' | 'default_cost' | 'sort' | 'track_on_hand' | 'active' | 'supplier_id' | 'tenant_coef'>>): Promise<void> {
   const { error, status } = await supabase.from('items').update(patch).eq('id', id)
   if (error) throw toApiError(error, status)
 }

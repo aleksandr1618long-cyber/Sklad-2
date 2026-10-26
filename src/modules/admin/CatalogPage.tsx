@@ -144,6 +144,9 @@ export function CatalogPage() {
                             <span className="text-xs text-muted ml-2">
                               {it.pack_size > 1 ? `${n(String(it.pack_size))} ${it.pack_label}` : t.common.units[it.base_unit]}
                               {it.min_stock != null && ` · ${t.common.minimum} ${n(String(it.min_stock))}`}
+                              {it.tenant_coef != null
+                                ? ` · ×${n(String(Math.round(it.tenant_coef * 100) / 100))}`
+                                : (cat.tenant_coef != null ? ` · ×${n(String(Math.round(cat.tenant_coef * 100) / 100))}` : '')}
                             </span>
                           </div>
                           <button onClick={() => setEditingItem({ item: it, categoryId: cat.id })} className="text-muted hover:text-accent shrink-0">
@@ -230,12 +233,12 @@ export function CatalogPage() {
         <CategoryEditor
           category={editingCat}
           onClose={() => { setEditingCat(null); setAddingCat(false) }}
-          onSave={async (name, kind, sort) => {
+          onSave={async (name, kind, sort, tenantCoef) => {
             try {
               if (editingCat) {
-                await updateCategory(editingCat.id, { name, kind, sort })
+                await updateCategory(editingCat.id, { name, kind, sort, tenant_coef: tenantCoef })
               } else {
-                await createCategory(name, kind, sort)
+                await createCategory(name, kind, sort, tenantCoef)
               }
               toast(t.admin.catalog.save, 'success')
               setEditingCat(null)
@@ -307,7 +310,7 @@ function CategoryEditor({
 }: {
   category: Category | null
   onClose: () => void
-  onSave: (name: string, kind: ItemKind, sort: number) => void
+  onSave: (name: string, kind: ItemKind, sort: number, tenantCoef: number | null) => void
 }) {
   const { t } = useI18n()
   const kindLabels: Record<ItemKind, string> = {
@@ -317,6 +320,7 @@ function CategoryEditor({
   const [name, setName] = useState(category?.name ?? '')
   const [kind, setKind] = useState<ItemKind>(category?.kind ?? 'asset')
   const [sort, setSort] = useState(String(category?.sort ?? 0))
+  const [tenantCoef, setTenantCoef] = useState(category?.tenant_coef != null ? String(category.tenant_coef) : '')
 
   return (
     <Modal title={category ? t.admin.catalog.editCategory : t.admin.catalog.addCategory} onClose={onClose}>
@@ -339,8 +343,14 @@ function CategoryEditor({
           <input type="number" value={sort} onChange={(e) => setSort(e.target.value)}
             className="w-full bg-app rounded-lg px-4 py-2.5 text-sm focus:outline-none" />
         </Field>
+        <Field label={t.admin.catalog.tenantCoef}>
+          <input type="number" min="0" step="any" value={tenantCoef} onChange={(e) => setTenantCoef(e.target.value)}
+            placeholder={t.admin.catalog.tenantCoefExample}
+            className="w-full bg-app rounded-lg px-4 py-2.5 text-sm focus:outline-none" />
+          <p className="text-xs text-muted mt-0.5">{t.admin.catalog.tenantCoefHint}</p>
+        </Field>
       </div>
-      <Actions onClose={onClose} onSave={() => onSave(name.trim(), kind, Number(sort) || 0)} disabled={!name.trim()} />
+      <Actions onClose={onClose} onSave={() => onSave(name.trim(), kind, Number(sort) || 0, tenantCoef.trim() ? Number(tenantCoef) : null)} disabled={!name.trim()} />
     </Modal>
   )
 }
@@ -371,9 +381,10 @@ function ItemEditor({
     track_on_hand: boolean
     active?: boolean
     supplier_id?: number | null
+    tenant_coef?: number | null
   }) => void
 }) {
-  const { t } = useI18n()
+  const { t, n } = useI18n()
   const [categoryId, setCategoryId] = useState(item?.category_id ?? defaultCategoryId)
   const [name, setName] = useState(item?.name ?? '')
   const [baseUnit, setBaseUnit] = useState<BaseUnit>(item?.base_unit ?? 'pcs')
@@ -383,6 +394,8 @@ function ItemEditor({
   const [targetStock, setTargetStock] = useState(item?.target_stock != null ? String(item.target_stock) : '')
   const [note, setNote] = useState(item?.note ?? '')
   const [sort, setSort] = useState(String(item?.sort ?? 0))
+  const [tenantCoef, setTenantCoef] = useState(item?.tenant_coef != null ? String(item.tenant_coef) : '')
+  const selectedCat = categories.find((c) => c.id === categoryId)
   const [defaultCost, setDefaultCost] = useState(
     item?.default_cost != null ? String(Math.round(item.default_cost * item.pack_size * 1e6) / 1e6) : '',
   )
@@ -468,6 +481,18 @@ function ItemEditor({
           <input type="number" step="1" value={sort} onChange={(e) => setSort(e.target.value)}
             className="w-full bg-app rounded-lg px-4 py-2.5 text-sm focus:outline-none" />
         </Field>
+        <Field label={t.admin.catalog.tenantCoef}>
+          <input type="number" min="0" step="any" value={tenantCoef} onChange={(e) => setTenantCoef(e.target.value)}
+            placeholder={t.admin.catalog.tenantCoefExample}
+            className="w-full bg-app rounded-lg px-4 py-2.5 text-sm focus:outline-none" />
+          <p className="text-xs text-muted mt-0.5">
+            {tenantCoef.trim()
+              ? t.admin.catalog.tenantCoefHint
+              : selectedCat?.tenant_coef != null
+                ? `${t.admin.catalog.tenantCoefInherited}: ${n(String(selectedCat.tenant_coef))}`
+                : t.admin.catalog.tenantCoefNone}
+          </p>
+        </Field>
         <Field label={t.admin.catalog.defaultCost}>
           <input type="number" min="0" step="any" value={defaultCost} onChange={(e) => setDefaultCost(e.target.value)}
             placeholder="—"
@@ -510,6 +535,7 @@ function ItemEditor({
           track_on_hand: trackOnHand,
           active: item ? active : undefined,
           supplier_id: supplierId,
+          tenant_coef: tenantCoef.trim() ? Number(tenantCoef) : null,
         })}
         disabled={!name.trim() || !(Number(packSize) > 0) || (minStock.trim() !== '' && !(Number(minStock) >= 0)) || targetInvalid || (defaultCost.trim() !== '' && !(Number(defaultCost) >= 0)) || (openingQty.trim() !== '' && !(Number(openingQty) >= 0))}
       />

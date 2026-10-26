@@ -19,7 +19,7 @@ export function QrIndexPage() {
     setError(null)
     supabase
       .from('sv_apartments')
-      .select('id,code,building,type,status,last_cleaned_at')
+      .select('id,code,building,type,status,is_owner,last_cleaned_at')
       .order('code')
       .then(({ data, error: e, status }) => {
         if (e) {

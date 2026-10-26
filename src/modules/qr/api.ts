@@ -10,7 +10,7 @@ import { fetchAllPages } from '@/lib/paginate'
 export async function fetchApartment(id: number): Promise<SvApartment | null> {
   const { data, error, status } = await supabase
     .from('sv_apartments')
-    .select('id,code,building,type,status,last_cleaned_at')
+    .select('id,code,building,type,status,is_owner,last_cleaned_at')
     .eq('id', id)
     .maybeSingle()
   if (error) throw toApiError(error, status)

@@ -22,6 +22,7 @@ const statusColors: Record<IncidentStatus, string> = {
 const kindIcons: Record<IncidentKind, React.ComponentType<{ className?: string }>> = {
   breakdown: Wrench,
   broken: AlertCircle,
+  damaged: AlertCircle,
   lost: Package,
   other: AlertCircle,
 }
@@ -37,6 +38,7 @@ export function IncidentList() {
   const kindLabels: Record<IncidentKind, string> = {
     breakdown: t.incidents.kindBreakdown,
     broken: t.incidents.kindBroken,
+    damaged: t.incidents.kindDamaged,
     lost: t.incidents.kindLost,
     other: t.incidents.kindOther,
   }

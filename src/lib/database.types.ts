@@ -7,7 +7,7 @@ export type BaseUnit = 'pcs' | 'g' | 'ml'
 export type LocType = 'warehouse' | 'apartment' | 'holder' | 'sink' | 'source'
 export type NormType = 'asset_standing' | 'turnover_replenish' | 'cleaning_consumption'
 export type EventStatus = 'done' | 'reversed'
-export type IncidentKind = 'breakdown' | 'broken' | 'lost' | 'other'
+export type IncidentKind = 'breakdown' | 'broken' | 'lost' | 'damaged' | 'other'
 export type IncidentStatus = 'new' | 'in_progress' | 'confirmed' | 'rejected'
 export type DocType = 'receipt' | 'issue' | 'writeoff' | 'inventory'
 export type DocStatus = 'draft' | 'posted' | 'void'
@@ -33,6 +33,7 @@ export interface Apartment {
   code: string
   type: AptType
   status: string
+  is_owner: boolean
   created_at: string
 }
 
@@ -59,6 +60,7 @@ export interface Category {
   name: string
   kind: ItemKind
   sort: number
+  tenant_coef: number | null
 }
 
 export interface Supplier {
@@ -85,6 +87,7 @@ export interface Item {
   active: boolean
   sort: number
   supplier_id: number | null
+  tenant_coef: number | null
 }
 
 export interface Contact {
@@ -146,6 +149,7 @@ export interface SvApartment {
   building: string
   type: AptType
   status: string
+  is_owner: boolean
   last_cleaned_at: string | null
 }
 

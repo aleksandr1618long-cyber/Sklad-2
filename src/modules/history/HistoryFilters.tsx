@@ -67,6 +67,7 @@ export function HistoryFilters(props: Props) {
     const labels: Record<IncidentKind, string> = {
       breakdown: t.incidents.kindBreakdown,
       broken: t.incidents.kindBroken,
+      damaged: t.incidents.kindDamaged,
       lost: t.incidents.kindLost,
       other: t.incidents.kindOther,
     }
@@ -215,6 +216,7 @@ export function HistoryFilters(props: Props) {
                   <option value="">{t.history.all}</option>
                   <option value="breakdown">{t.incidents.kindBreakdown}</option>
                   <option value="broken">{t.incidents.kindBroken}</option>
+                  <option value="damaged">{t.incidents.kindDamaged}</option>
                   <option value="lost">{t.incidents.kindLost}</option>
                   <option value="other">{t.incidents.kindOther}</option>
                 </select>
