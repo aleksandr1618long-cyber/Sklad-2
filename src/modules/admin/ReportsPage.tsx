@@ -95,9 +95,11 @@ export function ReportsPage() {
 
   const loadData = useCallback((silent?: boolean) => {
     const current = rangeFor(period, from, to)
-    const id = ++requestId.current
-    if (!current) { setLoading(false); return }
     const quiet = silent === true
+    // Only a visible (non-silent) load invalidates earlier requests; a silent realtime refresh must not,
+    // otherwise it makes the running visible load "stale" and the loading flag is never cleared.
+    const id = quiet ? requestId.current : ++requestId.current
+    if (!current) { if (!quiet) setLoading(false); return }
     if (!quiet) { setLoading(true); setError(null) }
     Promise.all([
       fetchReportStockMoves(cairoLocalToISO(`${current.from}T00:00`)!, cairoLocalToISO(`${current.to}T00:00`)!),
