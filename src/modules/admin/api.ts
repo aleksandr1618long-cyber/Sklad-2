@@ -110,13 +110,17 @@ export async function fetchReportStockMoves(fromISO: string, toISO: string): Pro
   const rows = await fetchAllPages<StockMoveRow & { moved_at: string }>((from, to) =>
     supabase
       .from('stock_moves')
-      .select('id,item_id,qty,unit_cost,source_type,apartment_id,moved_at')
+      .select('id,item_id,from_loc,to_loc,qty,unit_cost,source_type,apartment_id,moved_at')
       .gte('moved_at', fromISO)
       .lt('moved_at', toISO)
       .order('moved_at', { ascending: false })
       .order('id', { ascending: false })
       .range(from, to),
   )
+
+  const sinkResult = await supabase.from('locations').select('id').eq('type', 'sink').limit(1)
+  if (sinkResult.error) throw toApiError(sinkResult.error, sinkResult.status)
+  const sinkId = sinkResult.data?.[0]?.id ?? null
 
   const itemIds = Array.from(new Set(rows.map((row) => row.item_id)))
   const apartmentIds = Array.from(new Set(rows.map((row) => row.apartment_id).filter((id): id is number => id !== null)))
@@ -158,6 +162,7 @@ export async function fetchReportStockMoves(fromISO: string, toISO: string): Pro
       source_type: row.source_type,
       apartment_id: row.apartment_id,
       apartment_code: row.apartment_id == null ? null : apartmentMap.get(row.apartment_id) ?? '—',
+      sink_flow: sinkId == null ? 0 : row.to_loc === sinkId ? 1 : row.from_loc === sinkId ? -1 : 0,
       moved_at: row.moved_at,
     }
   })

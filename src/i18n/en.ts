@@ -549,7 +549,8 @@ export const en: Dict = {
     },
     reports: {
       title: 'Reports',
-      expense: 'Expense by apartments',
+      expense: 'Expense (cleanings, write-offs, incidents)',
+      costPartialNote: '* The total is incomplete: some movements have no price (older write-offs or items with no priced receipt).',
       currentStock: 'Current stock',
       moves: 'Stock movements',
       today: 'Today',

@@ -17,6 +17,7 @@ interface ExpenseRow {
   category: string
   qtyPacks: number
   cost: number | null
+  partial: boolean
 }
 
 interface CurrencySetting {
@@ -119,21 +120,22 @@ export function ReportsPage() {
   useLiveRefresh(['stock_moves', 'cleaning_events', 'incidents', 'items'], () => loadData(true))
 
   const expenseRows = useMemo(() => {
-    const grouped = new Map<string, ExpenseRow & { missingCost: boolean }>()
+    // расход = любое движение в «списано» (уборки, списания, заявки, недостача при инвентаризации) минус возвраты
+    const grouped = new Map<string, ExpenseRow>()
     for (const move of moves) {
-      if (move.source_type !== 'cleaning' && move.source_type !== 'cleaning_reversal') continue
+      if (move.sink_flow === 0) continue
       const key = `${move.apartment_id ?? 'none'}-${move.item_id}`
-      const sign = move.source_type === 'cleaning_reversal' ? -1 : 1
+      const sign = move.sink_flow
       const existing = grouped.get(key) ?? {
         apartment: move.apartment_code ?? '—', item: move.item_name, category: move.category,
-        qtyPacks: 0, cost: 0, missingCost: false,
+        qtyPacks: 0, cost: null, partial: false,
       }
       existing.qtyPacks += sign * packs(move.qty, move.pack_size)
-      if (move.unit_cost == null) existing.missingCost = true
+      if (move.unit_cost == null) existing.partial = true
       else existing.cost = (existing.cost ?? 0) + sign * move.qty * move.unit_cost
       grouped.set(key, existing)
     }
-    return Array.from(grouped.values()).map(({ missingCost, ...row }) => ({ ...row, cost: missingCost ? null : row.cost }))
+    return Array.from(grouped.values())
       .filter((row) => Math.abs(row.qtyPacks) > 0.0001)
       .sort((a, b) => a.apartment.localeCompare(b.apartment) || a.item.localeCompare(b.item))
   }, [moves])
@@ -190,7 +192,7 @@ export function ReportsPage() {
       {loading ? <p className="text-sm text-muted text-center py-8">{t.app.loading}</p> : error ? <p className="text-sm text-bad text-center py-8">{error}</p> : (
         <>
           {tab === 'expense' && <ReportCard title={t.admin.reports.expense} onExport={exportExpense} exportLabel={t.admin.reports.export}>
-            <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr><Th>{t.admin.reports.apartment}</Th><Th>{t.admin.reports.item}</Th><Th>{t.admin.reports.category}</Th><Th>{t.admin.reports.qtyPacks}</Th><Th>{t.admin.reports.cost}</Th></tr></thead><tbody>{expenseRows.map((row) => <tr key={`${row.apartment}-${row.item}`} className="border-t border-line"><Td>{row.apartment}</Td><Td>{row.item}</Td><Td>{row.category}</Td><Td>{n(formatNum(row.qtyPacks, { maximumFractionDigits: 2 }))}</Td><Td>{row.cost == null ? '—' : formatCurrency(row.cost, currency)}</Td></tr>)}</tbody></table>{expenseRows.length === 0 && <Empty label={t.common.noResults} />}</div>
+            <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr><Th>{t.admin.reports.apartment}</Th><Th>{t.admin.reports.item}</Th><Th>{t.admin.reports.category}</Th><Th>{t.admin.reports.qtyPacks}</Th><Th>{t.admin.reports.cost}</Th></tr></thead><tbody>{expenseRows.map((row) => <tr key={`${row.apartment}-${row.item}`} className="border-t border-line"><Td>{row.apartment}</Td><Td>{row.item}</Td><Td>{row.category}</Td><Td>{n(formatNum(row.qtyPacks, { maximumFractionDigits: 2 }))}</Td><Td>{row.cost == null ? '—' : `${formatCurrency(row.cost, currency)}${row.partial ? ' *' : ''}`}</Td></tr>)}</tbody></table>{expenseRows.length === 0 && <Empty label={t.common.noResults} />}{expenseRows.some((row) => row.partial && row.cost != null) && <p className="text-xs text-muted mt-2">{t.admin.reports.costPartialNote}</p>}</div>
           </ReportCard>}
           {tab === 'stock' && <ReportCard title={t.admin.reports.currentStock} onExport={exportStock} exportLabel={t.admin.reports.export}>
             <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr><Th>{t.admin.reports.item}</Th><Th>{t.admin.reports.category}</Th><Th>{t.admin.reports.qtyPacks}</Th><Th>{t.admin.reports.minimum}</Th><Th>{t.common.status}</Th></tr></thead><tbody>{stock.map((row) => <tr key={row.item_id} className="border-t border-line"><Td>{row.name}</Td><Td>{row.category}</Td><Td>{n(formatNum(packs(row.qty, row.pack_size), { maximumFractionDigits: 2 }))}</Td><Td>{row.min_stock == null ? '—' : n(formatNum(row.min_stock, { maximumFractionDigits: 2 }))}</Td><Td><span className={row.below_min ? 'text-bad' : 'text-ok'}>{row.below_min ? t.admin.reports.belowMinimum : t.admin.reports.ok}</span></Td></tr>)}</tbody></table>{stock.length === 0 && <Empty label={t.common.noResults} />}</div>

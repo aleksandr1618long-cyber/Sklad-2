@@ -229,6 +229,8 @@ export interface ReportStockMoveRow {
   source_type: string
   apartment_id: number | null
   apartment_code: string | null
+  /** +1: движение в «списано» (расход), -1: возврат из «списано», 0: не расход */
+  sink_flow: 1 | -1 | 0
   moved_at: string
 }
 
