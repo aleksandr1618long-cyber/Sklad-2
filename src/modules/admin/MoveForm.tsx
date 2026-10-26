@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { fetchWarehouseStock, fetchApartmentsAdmin, fetchAllStaff, fetchSuppliers, fetchItems, postDocument } from '@/modules/admin/api'
+import { fetchWarehouseStock, fetchApartmentsAdmin, fetchAllStaff, fetchSuppliers, fetchItems, postDocument, postTransfer } from '@/modules/admin/api'
 import type { WarehouseStockRow, Apartment, Staff, Supplier, PostDocumentResult } from '@/lib/database.types'
 import { useI18n } from '@/i18n'
 import { formatQty } from '@/lib/format'
@@ -20,6 +20,7 @@ interface MoveOpDef {
   needsApartment: boolean
   needsStaff: boolean
   needsCost: boolean
+  needsToApartment?: boolean
 }
 
 interface CartLine {
@@ -47,6 +48,8 @@ export function MoveModal({ onClose, onDone }: { onClose: () => void; onDone: ()
     { op: 'issue_holder', label: t.admin.move.issueHolder, needsApartment: false, needsStaff: true, needsCost: false },
     { op: 'return_holder', label: t.admin.move.returnHolder, needsApartment: false, needsStaff: true, needsCost: false },
     { op: 'writeoff_holder', label: t.admin.move.writeoffHolder, needsApartment: false, needsStaff: true, needsCost: false },
+    { op: 'transfer_apartment', label: t.admin.move.transferApt, needsApartment: true, needsStaff: false, needsCost: false, needsToApartment: true },
+    { op: 'transfer_holder', label: t.admin.move.transferHolder, needsApartment: true, needsStaff: true, needsCost: false },
   ]
   const [stock, setStock] = useState<WarehouseStockRow[]>([])
   const [apartments, setApartments] = useState<Apartment[]>([])
@@ -60,6 +63,7 @@ export function MoveModal({ onClose, onDone }: { onClose: () => void; onDone: ()
   const [itemMeta, setItemMeta] = useState<Map<number, { cost: number | null; supplier: number | null }>>(new Map())
   const [note, setNote] = useState('')
   const [docDate, setDocDate] = useState(localToday())
+  const [toApartmentId, setToApartmentId] = useState<number | null>(null)
   const [cart, setCart] = useState<CartLine[]>([])
   const [search, setSearch] = useState('')
   const [posting, setPosting] = useState(false)
@@ -87,6 +91,7 @@ export function MoveModal({ onClose, onDone }: { onClose: () => void; onDone: ()
 
   // предупреждение «не хватает» относится только к операциям, которые берут товар со склада
   const isOutbound = op === 'issue_apartment' || op === 'writeoff_warehouse' || op === 'issue_holder'
+  const isTransfer = op === 'transfer_apartment' || op === 'transfer_holder'
 
   const addToCart = (item: WarehouseStockRow) => {
     const meta = itemMeta.get(item.item_id)
@@ -135,6 +140,16 @@ export function MoveModal({ onClose, onDone }: { onClose: () => void; onDone: ()
       toast(t.admin.move.staff, 'error')
       return
     }
+    if (opDef.needsToApartment) {
+      if (!toApartmentId) {
+        toast(t.admin.move.toApartment, 'error')
+        return
+      }
+      if (toApartmentId === apartmentId) {
+        toast(t.admin.move.sameApartment, 'error')
+        return
+      }
+    }
     const lines = cart
       .map((line) => {
         const baseQty = getBaseQty(line)
@@ -150,15 +165,25 @@ export function MoveModal({ onClose, onDone }: { onClose: () => void; onDone: ()
     }
     setPosting(true)
     try {
-      const res = await postDocument({
-        op,
-        lines,
-        apartment: opDef.needsApartment ? apartmentId : null,
-        staff: opDef.needsStaff ? staffId : null,
-        supplier: opDef.needsCost ? supplierId : null,
-        note: note.trim() || null,
-        doc_date: docDate && docDate !== localToday() ? docDate : null,
-      })
+      const docDateArg = docDate && docDate !== localToday() ? docDate : null
+      const res = isTransfer
+        ? await postTransfer({
+            fromKind: op === 'transfer_holder' ? 'holder' : 'apartment',
+            fromId: (op === 'transfer_holder' ? staffId : apartmentId) as number,
+            toApartment: (op === 'transfer_holder' ? apartmentId : toApartmentId) as number,
+            lines: lines.map((l) => ({ item_id: l.item_id, qty: l.qty })),
+            note: note.trim() || null,
+            doc_date: docDateArg,
+          })
+        : await postDocument({
+            op,
+            lines,
+            apartment: opDef.needsApartment ? apartmentId : null,
+            staff: opDef.needsStaff ? staffId : null,
+            supplier: opDef.needsCost ? supplierId : null,
+            note: note.trim() || null,
+            doc_date: docDateArg,
+          })
       setResult(res)
     } catch (e) {
       toast(errorMessage(e), 'error')
@@ -252,7 +277,9 @@ export function MoveModal({ onClose, onDone }: { onClose: () => void; onDone: ()
           {/* Apartment */}
           {opDef.needsApartment && (
             <div>
-              <label className="block text-sm font-medium text-ink mb-1.5">{t.admin.move.apartment}</label>
+              <label className="block text-sm font-medium text-ink mb-1.5">
+                {op === 'transfer_apartment' ? t.admin.move.fromApartment : op === 'transfer_holder' ? t.admin.move.toApartment : t.admin.move.apartment}
+              </label>
               <select
                 value={apartmentId ?? ''}
                 onChange={(e) => setApartmentId(e.target.value ? Number(e.target.value) : null)}
@@ -266,10 +293,26 @@ export function MoveModal({ onClose, onDone }: { onClose: () => void; onDone: ()
             </div>
           )}
 
+          {opDef.needsToApartment && (
+            <div>
+              <label className="block text-sm font-medium text-ink mb-1.5">{t.admin.move.toApartment}</label>
+              <select
+                value={toApartmentId ?? ''}
+                onChange={(e) => setToApartmentId(e.target.value ? Number(e.target.value) : null)}
+                className="w-full bg-surface rounded-lg px-4 py-2.5 text-sm border border-line focus:border-accent focus:outline-none"
+              >
+                <option value="">—</option>
+                {apartments.filter((a) => a.id !== apartmentId).map((a) => (
+                  <option key={a.id} value={a.id}>{a.code}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Staff */}
           {opDef.needsStaff && (
             <div>
-              <label className="block text-sm font-medium text-ink mb-1.5">{t.admin.move.staff}</label>
+              <label className="block text-sm font-medium text-ink mb-1.5">{op === 'transfer_holder' ? t.admin.move.fromStaff : t.admin.move.staff}</label>
               <select
                 value={staffId ?? ''}
                 onChange={(e) => setStaffId(e.target.value ? Number(e.target.value) : null)}
@@ -344,7 +387,7 @@ export function MoveModal({ onClose, onDone }: { onClose: () => void; onDone: ()
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
-                    {stockQty !== null && (
+                    {stockQty !== null && !isTransfer && (
                       <p className="text-xs text-muted mb-2">
                         {t.admin.move.inStock}: {n(formatQty(stockQty, { base_unit: line.baseUnit as WarehouseStockRow['base_unit'], pack_size: line.packSize, pack_label: line.packLabel }))}
                       </p>

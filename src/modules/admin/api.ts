@@ -331,6 +331,26 @@ export async function fetchAllIncidents(): Promise<Incident[]> {
 
 // ---- Mutations (all through RPC) ----
 
+export async function postTransfer(params: {
+  fromKind: 'apartment' | 'holder'
+  fromId: number
+  toApartment: number
+  lines: Array<{ item_id: number; qty: number }>
+  note?: string | null
+  doc_date?: string | null
+}): Promise<PostDocumentResult> {
+  const { data, error, status } = await supabase.rpc('transfer_stock', {
+    p_from_kind: params.fromKind,
+    p_from_id: params.fromId,
+    p_to_apartment: params.toApartment,
+    p_lines: params.lines,
+    p_note: params.note ?? null,
+    ...(params.doc_date ? { p_doc_date: params.doc_date } : {}),
+  })
+  if (error) throw toApiError(error, status)
+  return data as PostDocumentResult
+}
+
 export async function postDocument(params: {
   op: string
   lines: Array<{ item_id: number; qty: number; unit_cost?: number | null }>
