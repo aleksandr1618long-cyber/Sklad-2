@@ -6,7 +6,7 @@ $$ select case when coalesce(c, false) then 'OK    ' else 'FAIL  ' end || n || E
 do $$
 declare
   v_admin uuid; rep text := ''; t text; j jsonb; rec record;
-  v_bld int; v_O int; v_R int; v_ca int; v_cn int; v_cc int; v_A int; v_B int; v_C int;
+  v_bld int; v_O int; v_R int; v_ca int; v_cn int; v_cc int; v_A int; v_B int; v_C int; v_D int; v_inc3 uuid;
   l_wh int; l_O int; l_R int; l_os int; v_inc uuid; v_inc2 uuid; v_mv bigint;
 begin
   select id into v_admin from profiles where role = 'admin' and active limit 1;
@@ -18,7 +18,8 @@ begin
   insert into buildings(name) values ('ZZT') returning id into v_bld;
   insert into apartments(building_id, number, code, type) values (v_bld, '1', 'ZZT/1', 'studio') returning id into v_O;
   insert into apartments(building_id, number, code, type) values (v_bld, '2', 'ZZT/2', 'studio') returning id into v_R;
-  insert into categories(name, kind, tenant_coef) values ('ZZ актив с коэф', 'asset', 1.5) returning id into v_ca;
+  insert into categories(name, kind) values ('ZZ актив с коэф', 'asset') returning id into v_ca;
+  insert into tenant_coefs(category_id, coef) values (v_ca, 1.5);
   insert into categories(name, kind) values ('ZZ актив без коэф', 'asset') returning id into v_cn;
   insert into categories(name, kind) values ('ZZ расходник', 'consumable') returning id into v_cc;
   insert into items(category_id, name) values (v_ca, 'ZZ A') returning id into v_A;
@@ -112,6 +113,13 @@ begin
   -- T9 статус
   perform set_incident_charge_status(v_inc, 'paid');
   rep := rep || pg_temp.r('T9 статус paid + дата', (select status = 'paid' and status_changed_at is not null from incident_charges where incident_id = v_inc));
+
+  -- T10 коэффициент предмета важнее коэффициента группы
+  insert into items(category_id, name) values (v_ca, 'ZZ D') returning id into v_D;
+  insert into tenant_coefs(item_id, coef) values (v_D, 3);
+  insert into incidents(apartment_id, item_id, kind, qty, created_by) values (v_R, v_D, 'lost', 1, v_admin) returning id into v_inc3;
+  j := incident_charge_preview(v_inc3);
+  rep := rep || pg_temp.r('T10 коэф предмета 3 (item) важнее группы 1.5', (j->>'coef')::numeric = 3 and j->>'coef_source' = 'item');
 
   raise exception E'ОТЧЁТ (данные откатаны):\n%', rep;
 end $$;

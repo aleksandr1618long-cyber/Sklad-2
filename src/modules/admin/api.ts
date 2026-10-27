@@ -975,8 +975,8 @@ export async function deleteNormRule(id: number): Promise<void> {
 // ---- Categories CRUD (admin_all policy) ----
 
 export async function fetchTenantCoefs(): Promise<{ item_id: number | null; category_id: number | null; coef: number }[]> {
-  const { data, error } = await supabase.from('tenant_coefs').select('item_id,category_id,coef')
-  if (error) return []
+  const { data, error, status } = await supabase.from('tenant_coefs').select('item_id,category_id,coef')
+  if (error) throw toApiError(error, status)
   return (data ?? []) as { item_id: number | null; category_id: number | null; coef: number }[]
 }
 
