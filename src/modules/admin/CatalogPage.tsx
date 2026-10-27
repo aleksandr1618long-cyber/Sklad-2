@@ -24,6 +24,21 @@ import { useLiveRefresh } from '@/lib/realtime'
 import { unitLabel } from '@/lib/format'
 
 const baseUnitOptions: BaseUnit[] = ['pcs', 'g', 'ml']
+
+function parseCoef(raw: string): number | null {
+  const trimmed = raw.trim()
+  if (!trimmed) return null
+  const num = Number(trimmed)
+  if (!Number.isFinite(num) || num <= 0 || num > 99999.999) return null
+  const decimals = trimmed.split('.')[1]
+  if (decimals && decimals.length > 3) return null
+  return num
+}
+
+function formatCoef(v: number): string {
+  return String(Math.round(v * 1000) / 1000)
+}
+
 export function CatalogPage() {
   const { t, n } = useI18n()
   const kindLabels: Record<ItemKind, string> = {
@@ -144,10 +159,12 @@ export function CatalogPage() {
                             <span className="text-xs text-muted ml-2">
                               {it.pack_size > 1 ? `${n(String(it.pack_size))} ${it.pack_label}` : t.common.units[it.base_unit]}
                               {it.min_stock != null && ` · ${t.common.minimum} ${n(String(it.min_stock))}`}
-                              {it.tenant_coef != null
-                                ? ` · ×${n(String(Math.round(it.tenant_coef * 100) / 100))}`
-                                : (cat.tenant_coef != null ? ` · ×${n(String(Math.round(cat.tenant_coef * 100) / 100))}` : '')}
                             </span>
+                            {it.tenant_coef != null
+                              ? <span className="text-xs text-ink ml-1">· ×{formatCoef(it.tenant_coef)}</span>
+                              : cat.tenant_coef != null
+                                ? <span className="text-xs text-muted ml-1">· ×{formatCoef(cat.tenant_coef)}</span>
+                                : <span className="text-xs text-muted ml-1">· {t.admin.catalog.tenantCoefNone}</span>}
                           </div>
                           <button onClick={() => setEditingItem({ item: it, categoryId: cat.id })} className="text-muted hover:text-accent shrink-0">
                             <Edit3 className="w-3.5 h-3.5" />
@@ -312,7 +329,7 @@ function CategoryEditor({
   onClose: () => void
   onSave: (name: string, kind: ItemKind, sort: number, tenantCoef: number | null) => void
 }) {
-  const { t } = useI18n()
+  const { t, n } = useI18n()
   const kindLabels: Record<ItemKind, string> = {
     asset: t.admin.catalog.kindAsset,
     consumable: t.admin.catalog.kindConsumable,
@@ -347,10 +364,17 @@ function CategoryEditor({
           <input type="number" min="0" step="any" value={tenantCoef} onChange={(e) => setTenantCoef(e.target.value)}
             placeholder={t.admin.catalog.tenantCoefExample}
             className="w-full bg-app rounded-lg px-4 py-2.5 text-sm focus:outline-none" />
-          <p className="text-xs text-muted mt-0.5">{t.admin.catalog.tenantCoefHint}</p>
+          {tenantCoef.trim() && parseCoef(tenantCoef) == null
+            ? <p className="text-xs text-bad mt-0.5">{t.admin.catalog.tenantCoefInvalid}</p>
+            : <p className="text-xs text-muted mt-0.5">{t.admin.catalog.tenantCoefHint}</p>}
+          {tenantCoef.trim() && parseCoef(tenantCoef) != null && (
+            <p className="text-xs text-muted mt-0.5">
+              {t.admin.catalog.tenantCoefExampleFmt.replace('{amount}', n(String(Math.round(100 * (parseCoef(tenantCoef) ?? 1) * 100) / 100)))}
+            </p>
+          )}
         </Field>
       </div>
-      <Actions onClose={onClose} onSave={() => onSave(name.trim(), kind, Number(sort) || 0, tenantCoef.trim() ? Number(tenantCoef) : null)} disabled={!name.trim()} />
+      <Actions onClose={onClose} onSave={() => onSave(name.trim(), kind, Number(sort) || 0, parseCoef(tenantCoef))} disabled={!name.trim() || (tenantCoef.trim() != null && tenantCoef.trim() !== '' && parseCoef(tenantCoef) == null)} />
     </Modal>
   )
 }
@@ -485,13 +509,21 @@ function ItemEditor({
           <input type="number" min="0" step="any" value={tenantCoef} onChange={(e) => setTenantCoef(e.target.value)}
             placeholder={t.admin.catalog.tenantCoefExample}
             className="w-full bg-app rounded-lg px-4 py-2.5 text-sm focus:outline-none" />
-          <p className="text-xs text-muted mt-0.5">
-            {tenantCoef.trim()
-              ? t.admin.catalog.tenantCoefHint
-              : selectedCat?.tenant_coef != null
-                ? `${t.admin.catalog.tenantCoefInherited}: ${n(String(selectedCat.tenant_coef))}`
-                : t.admin.catalog.tenantCoefNone}
-          </p>
+          {tenantCoef.trim() && parseCoef(tenantCoef) == null
+            ? <p className="text-xs text-bad mt-0.5">{t.admin.catalog.tenantCoefInvalid}</p>
+            : <p className="text-xs text-muted mt-0.5">{t.admin.catalog.tenantCoefHint}</p>}
+          {(() => {
+            const ownCoef = tenantCoef.trim() ? parseCoef(tenantCoef) : null
+            const catCoef = selectedCat?.tenant_coef ?? null
+            const effective = ownCoef ?? catCoef
+            const inherited = !tenantCoef.trim() && catCoef != null
+            if (effective != null) {
+              const amount = Math.round(100 * effective * 100) / 100
+              const base = t.admin.catalog.tenantCoefExampleFmt.replace('{amount}', n(String(amount)))
+              return <p className="text-xs text-muted mt-0.5">{base}{inherited ? ` (${t.admin.catalog.tenantCoefFromCategory})` : ''}</p>
+            }
+            return null
+          })()}
         </Field>
         <Field label={t.admin.catalog.defaultCost}>
           <input type="number" min="0" step="any" value={defaultCost} onChange={(e) => setDefaultCost(e.target.value)}
@@ -535,9 +567,9 @@ function ItemEditor({
           track_on_hand: trackOnHand,
           active: item ? active : undefined,
           supplier_id: supplierId,
-          tenant_coef: tenantCoef.trim() ? Number(tenantCoef) : null,
+          tenant_coef: parseCoef(tenantCoef),
         })}
-        disabled={!name.trim() || !(Number(packSize) > 0) || (minStock.trim() !== '' && !(Number(minStock) >= 0)) || targetInvalid || (defaultCost.trim() !== '' && !(Number(defaultCost) >= 0)) || (openingQty.trim() !== '' && !(Number(openingQty) >= 0))}
+        disabled={!name.trim() || !(Number(packSize) > 0) || (minStock.trim() !== '' && !(Number(minStock) >= 0)) || targetInvalid || (defaultCost.trim() !== '' && !(Number(defaultCost) >= 0)) || (openingQty.trim() !== '' && !(Number(openingQty) >= 0)) || (tenantCoef.trim() !== '' && parseCoef(tenantCoef) == null)}
       />
     </Modal>
   )

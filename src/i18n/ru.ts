@@ -756,6 +756,9 @@ export const ru = {
       tenantCoefExample: 'Закупка 100 → жильцу 150',
       tenantCoefInherited: 'от группы',
       tenantCoefNone: '—',
+      tenantCoefInvalid: 'Число больше 0, до 3 знаков после запятой, не более 99999.999',
+      tenantCoefFromCategory: 'с группы',
+      tenantCoefExampleFmt: 'Закупка 100 → жильцу {amount}',
     },
     orders: {
       title: 'Заказы поставщикам',

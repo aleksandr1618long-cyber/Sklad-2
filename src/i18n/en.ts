@@ -758,6 +758,9 @@ export const en: Dict = {
       tenantCoefExample: 'Purchase 100 → tenant 150',
       tenantCoefInherited: 'from category',
       tenantCoefNone: '—',
+      tenantCoefInvalid: 'A number greater than 0, up to 3 decimal places, no more than 99999.999',
+      tenantCoefFromCategory: 'from category',
+      tenantCoefExampleFmt: 'Purchase 100 → tenant {amount}',
     },
     orders: {
       title: 'Purchase orders',

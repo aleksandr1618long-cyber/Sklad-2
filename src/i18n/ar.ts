@@ -759,6 +759,9 @@ export const ar: Dict = {
       tenantCoefExample: 'شراء ١٠٠ → الساكن ١٥٠',
       tenantCoefInherited: 'من الفئة',
       tenantCoefNone: '—',
+      tenantCoefInvalid: 'رقم أكبر من صفر، لحد ٣ كسور عشرية، مش أكتر من ٩٩٩٩٩.٩٩٩',
+      tenantCoefFromCategory: 'من الفئة',
+      tenantCoefExampleFmt: 'شراء ١٠٠ → الساكن {amount}',
     },
     orders: {
       title: 'أوامر الشراء',
